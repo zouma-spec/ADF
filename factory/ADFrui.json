@@ -1,0 +1,9 @@
+{
+	"name": "ADFrui",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "f972afc9-7075-4c44-bc6b-78c34101c804",
+		"tenantId": "ec75c03d-052d-4d59-9b52-83f21ed3d946"
+	}
+}
