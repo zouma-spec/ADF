@@ -1,0 +1,34 @@
+{
+	"name": "OLTPtoODS_copy2",
+	"properties": {
+		"activities": [
+			{
+				"name": "AzureSqlTable1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT * FROM INFORMATION_SCHEMA.TABLES\nWHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME NOT LIKE '%Archive' \n\tAND TABLE_SCHEMA <>'Purchasing' AND TABLE_NAME NOT IN ('TransactionTypes',\n\t                                                      'SystemParameters',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'BuyingGroups',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'CustomerTransactions',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'SpecialDeals',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'CustomerCategories',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'StockItemStockGroups',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'VehicleTemperatures',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'StockItemTransactions',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'StockItemHoldings',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'ColdRoomTemperatures',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'PaymentMethods',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'InvoiceLines',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'DeliveryMethods',\n\t\t\t\t\t\t\t\t\t\t\t\t                 'StateProvinces',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'Colors',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'StockGroups',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'Cities',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'Countries')",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "AzureSqlTable1",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			}
+		],
+		"annotations": []
+	}
+}
