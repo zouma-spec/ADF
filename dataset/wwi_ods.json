@@ -1,0 +1,16 @@
+{
+	"name": "wwi_ods",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "wwi_ods",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "@dataset().SchemaName",
+			"table": "@dataset().TableName"
+		}
+	}
+}
