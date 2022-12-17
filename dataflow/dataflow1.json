@@ -10,6 +10,9 @@
 						"type": "DatasetReference"
 					},
 					"name": "ApplicationPeople"
+				},
+				{
+					"name": "source1"
 				}
 			],
 			"sinks": [],
@@ -24,6 +27,8 @@
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     query: 'Select * from Application.People',",
 				"     format: 'query') ~> ApplicationPeople",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false) ~> source1",
 				"ApplicationPeople select(mapColumn(",
 				"          PersonID,",
 				"          FullName,",
