@@ -24,10 +24,6 @@
 							"type": "Expression"
 						},
 						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "MetadataDrivenCopyTask_u7x_ControlDS",
-						"type": "DatasetReference"
 					}
 				}
 			},

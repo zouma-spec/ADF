@@ -1,0 +1,55 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ControlTable",
+						"type": "DatasetReference"
+					},
+					"name": "ApplicationPeople"
+				}
+			],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "selectEmployees"
+				}
+			],
+			"scriptLines": [
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'Select * from Application.People',",
+				"     format: 'query') ~> ApplicationPeople",
+				"ApplicationPeople select(mapColumn(",
+				"          PersonID,",
+				"          FullName,",
+				"          PreferredName,",
+				"          SearchName,",
+				"          IsPermittedToLogon,",
+				"          LogonName,",
+				"          IsExternalLogonProvider,",
+				"          HashedPassword,",
+				"          IsSystemUser,",
+				"          IsEmployee,",
+				"          IsSalesperson,",
+				"          UserPreferences,",
+				"          PhoneNumber,",
+				"          FaxNumber,",
+				"          EmailAddress,",
+				"          Photo,",
+				"          CustomFields,",
+				"          OtherLanguages,",
+				"          LastEditedBy,",
+				"          ValidFrom,",
+				"          ValidTo",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectEmployees"
+			]
+		}
+	}
+}

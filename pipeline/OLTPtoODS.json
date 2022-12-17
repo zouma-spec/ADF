@@ -87,7 +87,7 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "AzureSqlTable2",
+									"referenceName": "ControlTable",
 									"type": "DatasetReference",
 									"parameters": {
 										"TableName": {
