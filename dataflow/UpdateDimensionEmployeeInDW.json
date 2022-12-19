@@ -32,7 +32,7 @@
 					"description": "Creating/updating the columns ValidFrom"
 				},
 				{
-					"name": "split1"
+					"name": "lookup1"
 				}
 			],
 			"scriptLines": [
@@ -91,8 +91,10 @@
 				"     skipDuplicateMapOutputs: true) ~> selectColumns",
 				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee",
 				"selectColumns derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
-				"UpdateValidFrom split(UpdateValidFrom@{Valid From}>ExistingDimensionEmployee@{Valid From},",
-				"     disjoint: false) ~> split1@(ValidFromGreaterThanExisting, ValidFromNotGreaterThanExisting)"
+				"UpdateValidFrom, ExistingDimensionEmployee lookup(selectColumns@{WWI Employee ID} == ExistingDimensionEmployee@{WWI Employee ID},",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'right')~> lookup1"
 			]
 		}
 	}
