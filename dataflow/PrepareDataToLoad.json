@@ -1,59 +1,105 @@
 {
-	"name": "dataflow1",
+	"name": "PrepareDataToLoad",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
 			"sources": [
 				{
 					"dataset": {
-						"referenceName": "ControlTable",
+						"referenceName": "OLTPtoLoad",
 						"type": "DatasetReference"
 					},
-					"name": "ApplicationPeople"
+					"name": "PeopleToEmployee"
 				},
 				{
-					"name": "source1"
+					"dataset": {
+						"referenceName": "OLTPtoLoad",
+						"type": "DatasetReference"
+					},
+					"name": "PeopleToCustomer"
 				}
 			],
 			"sinks": [],
 			"transformations": [
 				{
-					"name": "selectEmployees"
+					"name": "filterCustomer"
+				},
+				{
+					"name": "selectColumns"
+				},
+				{
+					"name": "FilterEmployee"
 				}
 			],
 			"scriptLines": [
-				"source(allowSchemaDrift: true,",
+				"source(output(",
+				"          PersonID as integer,",
+				"          FullName as string,",
+				"          PreferredName as string,",
+				"          SearchName as string,",
+				"          IsPermittedToLogon as boolean,",
+				"          LogonName as string,",
+				"          IsExternalLogonProvider as boolean,",
+				"          HashedPassword as binary,",
+				"          IsSystemUser as boolean,",
+				"          IsEmployee as boolean,",
+				"          IsSalesperson as boolean,",
+				"          UserPreferences as string,",
+				"          PhoneNumber as string,",
+				"          FaxNumber as string,",
+				"          EmailAddress as string,",
+				"          Photo as binary,",
+				"          CustomFields as string,",
+				"          OtherLanguages as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     limit: 100,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> PeopleToEmployee",
+				"source(output(",
+				"          PersonID as integer,",
+				"          FullName as string,",
+				"          PreferredName as string,",
+				"          SearchName as string,",
+				"          IsPermittedToLogon as boolean,",
+				"          LogonName as string,",
+				"          IsExternalLogonProvider as boolean,",
+				"          HashedPassword as binary,",
+				"          IsSystemUser as boolean,",
+				"          IsEmployee as boolean,",
+				"          IsSalesperson as boolean,",
+				"          UserPreferences as string,",
+				"          PhoneNumber as string,",
+				"          FaxNumber as string,",
+				"          EmailAddress as string,",
+				"          Photo as binary,",
+				"          CustomFields as string,",
+				"          OtherLanguages as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     query: 'Select * from Application.People',",
-				"     format: 'query') ~> ApplicationPeople",
-				"source(allowSchemaDrift: true,",
-				"     validateSchema: false) ~> source1",
-				"ApplicationPeople select(mapColumn(",
+				"     format: 'table') ~> PeopleToCustomer",
+				"PeopleToCustomer filter(IsEmployee==false()) ~> filterCustomer",
+				"FilterEmployee select(mapColumn(",
 				"          PersonID,",
 				"          FullName,",
 				"          PreferredName,",
-				"          SearchName,",
-				"          IsPermittedToLogon,",
-				"          LogonName,",
-				"          IsExternalLogonProvider,",
-				"          HashedPassword,",
-				"          IsSystemUser,",
-				"          IsEmployee,",
 				"          IsSalesperson,",
-				"          UserPreferences,",
-				"          PhoneNumber,",
-				"          FaxNumber,",
-				"          EmailAddress,",
 				"          Photo,",
-				"          CustomFields,",
-				"          OtherLanguages,",
-				"          LastEditedBy,",
 				"          ValidFrom,",
 				"          ValidTo",
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> selectEmployees"
+				"     skipDuplicateMapOutputs: true) ~> selectColumns",
+				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee"
 			]
 		}
 	}

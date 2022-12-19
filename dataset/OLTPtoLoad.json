@@ -1,5 +1,5 @@
 {
-	"name": "ControlTable",
+	"name": "OLTPtoLoad",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureSqlDatabase1",
