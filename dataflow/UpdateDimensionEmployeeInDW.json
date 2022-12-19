@@ -26,6 +26,13 @@
 				},
 				{
 					"name": "FilterEmployee"
+				},
+				{
+					"name": "UpdateValidFrom",
+					"description": "Creating/updating the columns ValidFrom"
+				},
+				{
+					"name": "lookup1"
 				}
 			],
 			"scriptLines": [
@@ -78,12 +85,18 @@
 				"          PreferredName,",
 				"          IsSalesperson,",
 				"          Photo,",
-				"          ValidFrom,",
 				"          ValidTo",
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> selectColumns",
-				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee"
+				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee",
+				"selectColumns derive(ValidFrom = currentTimestamp()) ~> UpdateValidFrom",
+				"UpdateValidFrom, ExistingDimensionEmployee lookup(ValidFrom > {Valid From}",
+				"     && FullName == Employee",
+				"     && PersonID == {WWI Employee ID},",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'both')~> lookup1"
 			]
 		}
 	}
