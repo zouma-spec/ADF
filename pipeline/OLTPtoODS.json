@@ -21,10 +21,6 @@
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
-					"dataset": {
-						"referenceName": "AzureSqlTable1",
-						"type": "DatasetReference"
-					},
 					"firstRowOnly": false
 				}
 			},
@@ -87,7 +83,7 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "ControlTable",
+									"referenceName": "OLTPtoLoad",
 									"type": "DatasetReference",
 									"parameters": {
 										"TableName": {

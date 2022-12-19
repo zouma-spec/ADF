@@ -1,5 +1,5 @@
 {
-	"name": "PrepareDataToLoad",
+	"name": "LoadDimensionEmployeeToDW",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
@@ -10,20 +10,10 @@
 						"type": "DatasetReference"
 					},
 					"name": "PeopleToEmployee"
-				},
-				{
-					"dataset": {
-						"referenceName": "OLTPtoLoad",
-						"type": "DatasetReference"
-					},
-					"name": "PeopleToCustomer"
 				}
 			],
 			"sinks": [],
 			"transformations": [
-				{
-					"name": "filterCustomer"
-				},
 				{
 					"name": "selectColumns"
 				},
@@ -60,34 +50,6 @@
 				"     limit: 100,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> PeopleToEmployee",
-				"source(output(",
-				"          PersonID as integer,",
-				"          FullName as string,",
-				"          PreferredName as string,",
-				"          SearchName as string,",
-				"          IsPermittedToLogon as boolean,",
-				"          LogonName as string,",
-				"          IsExternalLogonProvider as boolean,",
-				"          HashedPassword as binary,",
-				"          IsSystemUser as boolean,",
-				"          IsEmployee as boolean,",
-				"          IsSalesperson as boolean,",
-				"          UserPreferences as string,",
-				"          PhoneNumber as string,",
-				"          FaxNumber as string,",
-				"          EmailAddress as string,",
-				"          Photo as binary,",
-				"          CustomFields as string,",
-				"          OtherLanguages as string,",
-				"          LastEditedBy as integer,",
-				"          ValidFrom as timestamp,",
-				"          ValidTo as timestamp",
-				"     ),",
-				"     allowSchemaDrift: true,",
-				"     validateSchema: false,",
-				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     format: 'table') ~> PeopleToCustomer",
-				"PeopleToCustomer filter(IsEmployee==false()) ~> filterCustomer",
 				"FilterEmployee select(mapColumn(",
 				"          PersonID,",
 				"          FullName,",
