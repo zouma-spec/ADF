@@ -30,9 +30,6 @@
 				{
 					"name": "UpdateValidFrom",
 					"description": "Creating/updating the columns ValidFrom"
-				},
-				{
-					"name": "lookup1"
 				}
 			],
 			"scriptLines": [
@@ -80,23 +77,17 @@
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> ExistingDimensionEmployee",
 				"FilterEmployee select(mapColumn(",
-				"          PersonID,",
-				"          FullName,",
-				"          PreferredName,",
-				"          IsSalesperson,",
+				"          {WWI Employee ID} = PersonID,",
+				"          Employee = FullName,",
+				"          {Preferred Name} = PreferredName,",
+				"          {Is Salesperson} = IsSalesperson,",
 				"          Photo,",
-				"          ValidTo",
+				"          {Valid To} = ValidTo",
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> selectColumns",
 				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee",
-				"selectColumns derive(ValidFrom = currentTimestamp()) ~> UpdateValidFrom",
-				"UpdateValidFrom, ExistingDimensionEmployee lookup(ValidFrom > {Valid From}",
-				"     && FullName == Employee",
-				"     && PersonID == {WWI Employee ID},",
-				"     multiple: false,",
-				"     pickup: 'any',",
-				"     broadcast: 'both')~> lookup1"
+				"selectColumns derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom"
 			]
 		}
 	}
