@@ -91,7 +91,7 @@
 				"     skipDuplicateMapOutputs: true) ~> selectColumns",
 				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee",
 				"selectColumns derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
-				"UpdateValidFrom split(ERROR_FUNCTION(''),",
+				"UpdateValidFrom split(UpdateValidFrom@{Valid From}>ExistingDimensionEmployee@{Valid From},",
 				"     disjoint: false) ~> split1@(ValidFromGreaterThanExisting, ValidFromNotGreaterThanExisting)"
 			]
 		}
