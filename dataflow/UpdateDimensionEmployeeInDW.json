@@ -30,6 +30,9 @@
 				{
 					"name": "UpdateValidFrom",
 					"description": "Creating/updating the columns ValidFrom"
+				},
+				{
+					"name": "split1"
 				}
 			],
 			"scriptLines": [
@@ -87,7 +90,9 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> selectColumns",
 				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee",
-				"selectColumns derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom"
+				"selectColumns derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
+				"UpdateValidFrom split(ERROR_FUNCTION(''),",
+				"     disjoint: false) ~> split1@(ValidFromGreaterThanExisting, ValidFromNotGreaterThanExisting)"
 			]
 		}
 	}
