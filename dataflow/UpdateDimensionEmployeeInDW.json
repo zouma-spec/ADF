@@ -1,5 +1,5 @@
 {
-	"name": "LoadDimensionEmployeeToDW",
+	"name": "UpdateDimensionEmployeeInDW",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
@@ -10,6 +10,13 @@
 						"type": "DatasetReference"
 					},
 					"name": "PeopleToEmployee"
+				},
+				{
+					"dataset": {
+						"referenceName": "ExistingDW",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingDimensionEmployee"
 				}
 			],
 			"sinks": [],
@@ -50,6 +57,21 @@
 				"     limit: 100,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> PeopleToEmployee",
+				"source(output(",
+				"          {Employee Key} as integer,",
+				"          {WWI Employee ID} as integer,",
+				"          Employee as string,",
+				"          {Preferred Name} as string,",
+				"          {Is Salesperson} as boolean,",
+				"          Photo as binary,",
+				"          {Valid From} as timestamp,",
+				"          {Valid To} as timestamp,",
+				"          {Lineage Key} as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> ExistingDimensionEmployee",
 				"FilterEmployee select(mapColumn(",
 				"          PersonID,",
 				"          FullName,",
