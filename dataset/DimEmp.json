@@ -5,6 +5,9 @@
 			"referenceName": "scd2trial",
 			"type": "LinkedServiceReference"
 		},
+		"folder": {
+			"name": "scd trial"
+		},
 		"annotations": [],
 		"type": "AzureSqlTable",
 		"schema": [
