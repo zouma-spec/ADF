@@ -1,9 +1,9 @@
 {
-	"name": "DimEmployeePipeline",
+	"name": "scdDimEmp",
 	"properties": {
 		"activities": [
 			{
-				"name": "scdDimEmployee",
+				"name": "UpdateDimensionEmployeeInDW",
 				"type": "ExecuteDataFlow",
 				"dependsOn": [],
 				"policy": {
@@ -38,7 +38,7 @@
 			}
 		],
 		"folder": {
-			"name": "Demos"
+			"name": "ODStoDW"
 		},
 		"annotations": []
 	}

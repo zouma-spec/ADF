@@ -1,6 +1,9 @@
 {
-	"name": "UpdateDimensionEmployeeInDW",
+	"name": "scdDimEmployee",
 	"properties": {
+		"folder": {
+			"name": "ODStoDW"
+		},
 		"type": "MappingDataFlow",
 		"typeProperties": {
 			"sources": [
@@ -19,7 +22,15 @@
 					"name": "ExistingDimensionEmployee"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ExistingDimEmp",
+						"type": "DatasetReference"
+					},
+					"name": "sinkNew"
+				}
+			],
 			"transformations": [
 				{
 					"name": "selectColumns"
@@ -29,10 +40,13 @@
 				},
 				{
 					"name": "UpdateValidFrom",
-					"description": "Creating/updating the columns ValidFrom"
+					"description": "Creating/updating the columns ValidFrom to the current timestamp"
 				},
 				{
-					"name": "lookup1"
+					"name": "lookupValidTime"
+				},
+				{
+					"name": "selectColumns2"
 				}
 			],
 			"scriptLines": [
@@ -91,10 +105,45 @@
 				"     skipDuplicateMapOutputs: true) ~> selectColumns",
 				"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee",
 				"selectColumns derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
-				"UpdateValidFrom, ExistingDimensionEmployee lookup(selectColumns@{WWI Employee ID} == ExistingDimensionEmployee@{WWI Employee ID},",
+				"UpdateValidFrom, ExistingDimensionEmployee lookup(UpdateValidFrom@{Valid From} != ExistingDimensionEmployee@{Valid From}",
+				"     && selectColumns@{WWI Employee ID} == ExistingDimensionEmployee@{WWI Employee ID},",
 				"     multiple: false,",
-				"     pickup: 'any',",
-				"     broadcast: 'right')~> lookup1"
+				"     pickup: 'last',",
+				"     asc(ExistingDimensionEmployee@{Valid From}, true),",
+				"     broadcast: 'right')~> lookupValidTime",
+				"lookupValidTime select(mapColumn(",
+				"          {WWI Employee ID} = selectColumns@{WWI Employee ID},",
+				"          Employee = selectColumns@Employee,",
+				"          {Preferred Name} = selectColumns@{Preferred Name},",
+				"          {Is Salesperson} = selectColumns@{Is Salesperson},",
+				"          Photo = selectColumns@Photo,",
+				"          {Valid From} = UpdateValidFrom@{Valid From},",
+				"          {Valid To} = selectColumns@{Valid To},",
+				"          {Lineage Key}",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> selectColumns2",
+				"selectColumns2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          {Employee Key} as integer,",
+				"          {WWI Employee ID} as integer,",
+				"          Employee as string,",
+				"          {Preferred Name} as string,",
+				"          {Is Salesperson} as boolean,",
+				"          Photo as binary,",
+				"          {Valid From} as timestamp,",
+				"          {Valid To} as timestamp,",
+				"          {Lineage Key} as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sinkNew"
 			]
 		}
 	}

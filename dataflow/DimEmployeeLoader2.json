@@ -1,6 +1,9 @@
 {
 	"name": "DimEmployeeLoader2",
 	"properties": {
+		"folder": {
+			"name": "scd trial"
+		},
 		"type": "MappingDataFlow",
 		"typeProperties": {
 			"sources": [
