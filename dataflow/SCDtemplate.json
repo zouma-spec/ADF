@@ -9,7 +9,7 @@
 			"sources": [
 				{
 					"dataset": {
-						"referenceName": "DimEmp",
+						"referenceName": "fromTemplate_DimEmp",
 						"type": "DatasetReference"
 					},
 					"name": "DimEmployees",
@@ -17,7 +17,7 @@
 				},
 				{
 					"dataset": {
-						"referenceName": "Employeefile",
+						"referenceName": "fromTemplate_Employeefile",
 						"type": "DatasetReference"
 					},
 					"name": "Employees1"
@@ -26,7 +26,7 @@
 			"sinks": [
 				{
 					"dataset": {
-						"referenceName": "DimEmp",
+						"referenceName": "fromTemplate_DimEmp",
 						"type": "DatasetReference"
 					},
 					"name": "sinkNew",
@@ -34,7 +34,7 @@
 				},
 				{
 					"dataset": {
-						"referenceName": "DimEmp",
+						"referenceName": "fromTemplate_DimEmp",
 						"type": "DatasetReference"
 					},
 					"name": "sinkUpdates",
@@ -42,7 +42,7 @@
 				},
 				{
 					"dataset": {
-						"referenceName": "DimEmp",
+						"referenceName": "fromTemplate_DimEmp",
 						"type": "DatasetReference"
 					},
 					"name": "sinkInactive",

@@ -1,5 +1,5 @@
 {
-	"name": "Employeefile",
+	"name": "fromTemplate_Employeefile",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureBlobStorage1",
