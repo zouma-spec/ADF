@@ -1,5 +1,5 @@
 {
-	"name": "ExistingDW",
+	"name": "DW",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "wwi_DW",

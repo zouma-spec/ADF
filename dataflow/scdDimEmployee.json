@@ -16,7 +16,7 @@
 				},
 				{
 					"dataset": {
-						"referenceName": "ExistingDW",
+						"referenceName": "DW",
 						"type": "DatasetReference"
 					},
 					"name": "ExistingDimensionEmployee"
