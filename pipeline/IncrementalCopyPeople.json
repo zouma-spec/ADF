@@ -1,5 +1,5 @@
 {
-	"name": "IncrementalCopyPipeline_copy1",
+	"name": "IncrementalCopyPeople",
 	"properties": {
 		"activities": [
 			{
@@ -162,6 +162,9 @@
 				}
 			}
 		],
+		"folder": {
+			"name": "OLTPtoODS_incrementalLoad"
+		},
 		"annotations": []
 	}
 }

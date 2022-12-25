@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "UpdateDimensionEmployeeInDW",
+				"name": "scdDimEmployee",
 				"type": "ExecuteDataFlow",
 				"dependsOn": [],
 				"policy": {
