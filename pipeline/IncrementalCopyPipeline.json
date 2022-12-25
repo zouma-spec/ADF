@@ -20,10 +20,6 @@
 						"sqlReaderQuery": "select MAX(LastModifytime) as NewWatermarkvalue from data_source_table\n",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "SourceDataset",
-						"type": "DatasetReference"
 					}
 				}
 			},
@@ -72,19 +68,7 @@
 						}
 					},
 					"enableStaging": false
-				},
-				"inputs": [
-					{
-						"referenceName": "SourceDataset",
-						"type": "DatasetReference"
-					}
-				],
-				"outputs": [
-					{
-						"referenceName": "SinkDataset",
-						"type": "DatasetReference"
-					}
-				]
+				}
 			},
 			{
 				"name": "StoredProceduretoWriteWatermarkActivity",
@@ -146,10 +130,6 @@
 						"type": "AzureSqlSource",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "WatermarkDataset",
-						"type": "DatasetReference"
 					}
 				}
 			}
