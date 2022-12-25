@@ -9,7 +9,7 @@
 			"sources": [
 				{
 					"dataset": {
-						"referenceName": "OLTP",
+						"referenceName": "ODS",
 						"type": "DatasetReference"
 					},
 					"name": "PeopleToEmployee"
@@ -43,7 +43,7 @@
 					"description": "Creating/updating the columns ValidFrom to the current timestamp"
 				},
 				{
-					"name": "lookupValidTime"
+					"name": "lookupIDsandValidTime"
 				},
 				{
 					"name": "selectColumns2"
@@ -78,18 +78,7 @@
 				"     limit: 100,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> PeopleToEmployee",
-				"source(output(",
-				"          {Employee Key} as integer,",
-				"          {WWI Employee ID} as integer,",
-				"          Employee as string,",
-				"          {Preferred Name} as string,",
-				"          {Is Salesperson} as boolean,",
-				"          Photo as binary,",
-				"          {Valid From} as timestamp,",
-				"          {Valid To} as timestamp,",
-				"          {Lineage Key} as integer",
-				"     ),",
-				"     allowSchemaDrift: true,",
+				"source(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> ExistingDimensionEmployee",
@@ -110,15 +99,15 @@
 				"     multiple: false,",
 				"     pickup: 'last',",
 				"     asc(ExistingDimensionEmployee@{Valid From}, true),",
-				"     broadcast: 'right')~> lookupValidTime",
-				"lookupValidTime select(mapColumn(",
-				"          {WWI Employee ID} = selectColumns@{WWI Employee ID},",
-				"          Employee = selectColumns@Employee,",
-				"          {Preferred Name} = selectColumns@{Preferred Name},",
-				"          {Is Salesperson} = selectColumns@{Is Salesperson},",
-				"          Photo = selectColumns@Photo,",
-				"          {Valid From} = UpdateValidFrom@{Valid From},",
-				"          {Valid To} = selectColumns@{Valid To},",
+				"     broadcast: 'right')~> lookupIDsandValidTime",
+				"lookupIDsandValidTime select(mapColumn(",
+				"          {WWI Employee ID},",
+				"          Employee,",
+				"          {Preferred Name},",
+				"          {Is Salesperson},",
+				"          Photo,",
+				"          {Valid From},",
+				"          {Valid To},",
 				"          {Lineage Key}",
 				"     ),",
 				"     skipDuplicateMapInputs: false,",
