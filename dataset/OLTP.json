@@ -1,8 +1,8 @@
 {
-	"name": "OLTPtoLoad",
+	"name": "OLTP",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "AzureSqlDatabase1",
+			"referenceName": "wwi_OLTP",
 			"type": "LinkedServiceReference"
 		},
 		"parameters": {

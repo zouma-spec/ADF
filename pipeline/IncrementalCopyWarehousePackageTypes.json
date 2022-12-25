@@ -1,5 +1,5 @@
 {
-	"name": "IncrementalCopyPipelineTemplate",
+	"name": "IncrementalCopyWarehousePackageTypes",
 	"properties": {
 		"activities": [
 			{
@@ -17,14 +17,22 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "select MAX(LastModifytime) as NewWatermarkvalue from data_source_table\n",
+						"sqlReaderQuery": "select MAX(ValidFrom) as NewWatermarkvalue from Warehouse.PackageTypes",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "OLTP",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableName": "PackageTypes",
+							"SchemaName": "Warehouse"
+						}
 					}
 				}
 			},
 			{
-				"name": "Copy data1",
+				"name": "IncrementWarehouseStockItems",
 				"type": "Copy",
 				"dependsOn": [
 					{
@@ -52,30 +60,46 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "select * from data_source_table where LastModifytime > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and LastModifytime <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+							"value": "select * from Warehouse.PackageTypes where ValidFrom > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and ValidFrom <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
 					"sink": {
-						"type": "JsonSink",
-						"storeSettings": {
-							"type": "AzureBlobStorageWriteSettings"
-						},
-						"formatSettings": {
-							"type": "JsonWriteSettings"
-						}
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
 					},
 					"enableStaging": false
-				}
+				},
+				"inputs": [
+					{
+						"referenceName": "OLTP",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableName": "PackageTypes",
+							"SchemaName": "Warehouse"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ODS",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "Warehouse",
+							"TableName": "PackageTypes"
+						}
+					}
+				]
 			},
 			{
 				"name": "StoredProceduretoWriteWatermarkActivity",
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "Copy data1",
+						"activity": "IncrementWarehouseStockItems",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -109,7 +133,7 @@
 					}
 				},
 				"linkedServiceName": {
-					"referenceName": "AzureSqlDatabase1",
+					"referenceName": "wwi_OLTP",
 					"type": "LinkedServiceReference"
 				}
 			},
@@ -128,12 +152,24 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select * from dbo.watermarktable\nwhere TableName = 'Warehouse.PackageTypes'",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "OLTP",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableName": "watermarktable",
+							"SchemaName": "dbo"
+						}
 					}
 				}
 			}
 		],
+		"folder": {
+			"name": "OLTPtoODS_incrementalLoad"
+		},
 		"annotations": []
 	}
 }

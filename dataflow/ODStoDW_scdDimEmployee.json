@@ -1,5 +1,5 @@
 {
-	"name": "scdDimEmployee",
+	"name": "ODStoDW_scdDimEmployee",
 	"properties": {
 		"folder": {
 			"name": "ODStoDW"
@@ -9,7 +9,7 @@
 			"sources": [
 				{
 					"dataset": {
-						"referenceName": "OLTPtoLoad",
+						"referenceName": "OLTP",
 						"type": "DatasetReference"
 					},
 					"name": "PeopleToEmployee"

@@ -22,7 +22,7 @@
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "OLTPtoLoad",
+						"referenceName": "OLTP",
 						"type": "DatasetReference",
 						"parameters": {
 							"TableName": "People",
@@ -75,7 +75,7 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "OLTPtoLoad",
+						"referenceName": "OLTP",
 						"type": "DatasetReference",
 						"parameters": {
 							"TableName": "People",
@@ -88,7 +88,7 @@
 						"referenceName": "ODS",
 						"type": "DatasetReference",
 						"parameters": {
-							"SchemaName": "dbo",
+							"SchemaName": "Application",
 							"TableName": "People"
 						}
 					}
@@ -133,7 +133,7 @@
 					}
 				},
 				"linkedServiceName": {
-					"referenceName": "AzureSqlDatabase1",
+					"referenceName": "wwi_OLTP",
 					"type": "LinkedServiceReference"
 				}
 			},
@@ -154,6 +154,14 @@
 						"type": "AzureSqlSource",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "OLTP",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableName": "watermarktable",
+							"SchemaName": "dbo"
+						}
 					}
 				}
 			}

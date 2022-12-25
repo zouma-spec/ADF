@@ -1,9 +1,9 @@
 {
-	"name": "scdDimEmp",
+	"name": "ODStoDW_scdDimEmployee",
 	"properties": {
 		"activities": [
 			{
-				"name": "scdDimEmployee",
+				"name": "ODStoDW_scdDimEmployee",
 				"type": "ExecuteDataFlow",
 				"dependsOn": [],
 				"policy": {
@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"dataflow": {
-						"referenceName": "scdDimEmployee",
+						"referenceName": "ODStoDW_scdDimEmployee",
 						"type": "DataFlowReference",
 						"datasetParameters": {
 							"PeopleToEmployee": {
