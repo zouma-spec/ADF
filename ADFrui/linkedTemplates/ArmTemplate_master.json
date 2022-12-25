@@ -11,9 +11,37 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
 		},
+		"AzureDataLakeStorage1_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'AzureDataLakeStorage1'"
+		},
 		"AzureSqlDatabase1_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase1'"
+		},
+		"NewAzureStorageLinkedService_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'NewAzureStorageLinkedService'"
+		},
+		"linkedService1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'linkedService1'"
+		},
+		"scd2trial_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'scd2trial'"
+		},
+		"wwi_DW_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'wwi_DW'"
+		},
+		"wwi_ODS_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'wwi_ODS'"
+		},
+		"AzureDataLakeStorage1_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://thisisaaccount.dfs.core.windows.net/"
 		},
 		"containerUri": {
 			"type": "string",
@@ -45,12 +73,53 @@
 					"AzureBlobStorage1_connectionString": {
 						"value": "[parameters('AzureBlobStorage1_connectionString')]"
 					},
+					"AzureDataLakeStorage1_accountKey": {
+						"value": "[parameters('AzureDataLakeStorage1_accountKey')]"
+					},
 					"AzureSqlDatabase1_connectionString": {
 						"value": "[parameters('AzureSqlDatabase1_connectionString')]"
+					},
+					"NewAzureStorageLinkedService_connectionString": {
+						"value": "[parameters('NewAzureStorageLinkedService_connectionString')]"
+					},
+					"linkedService1_connectionString": {
+						"value": "[parameters('linkedService1_connectionString')]"
+					},
+					"scd2trial_connectionString": {
+						"value": "[parameters('scd2trial_connectionString')]"
+					},
+					"wwi_DW_connectionString": {
+						"value": "[parameters('wwi_DW_connectionString')]"
+					},
+					"wwi_ODS_connectionString": {
+						"value": "[parameters('wwi_ODS_connectionString')]"
+					},
+					"AzureDataLakeStorage1_properties_typeProperties_url": {
+						"value": "[parameters('AzureDataLakeStorage1_properties_typeProperties_url')]"
 					}
 				}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "ADFrui_ArmTemplate_1",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2018-02-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_1.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Resources/deployments', 'ADFrui_ArmTemplate_0')]"
+			]
 		}
 	]
 }

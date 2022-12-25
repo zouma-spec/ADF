@@ -1,0 +1,226 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "ADFrui"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/scdDimEmployee')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "ODStoDW"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "OLTPtoLoad",
+								"type": "DatasetReference"
+							},
+							"name": "PeopleToEmployee"
+						},
+						{
+							"dataset": {
+								"referenceName": "ExistingDW",
+								"type": "DatasetReference"
+							},
+							"name": "ExistingDimensionEmployee"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ExistingDimEmp",
+								"type": "DatasetReference"
+							},
+							"name": "sinkNew"
+						}
+					],
+					"transformations": [
+						{
+							"name": "selectColumns"
+						},
+						{
+							"name": "FilterEmployee"
+						},
+						{
+							"name": "UpdateValidFrom",
+							"description": "Creating/updating the columns ValidFrom to the current timestamp"
+						},
+						{
+							"name": "lookupValidTime"
+						},
+						{
+							"name": "selectColumns2"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          PersonID as integer,",
+						"          FullName as string,",
+						"          PreferredName as string,",
+						"          SearchName as string,",
+						"          IsPermittedToLogon as boolean,",
+						"          LogonName as string,",
+						"          IsExternalLogonProvider as boolean,",
+						"          HashedPassword as binary,",
+						"          IsSystemUser as boolean,",
+						"          IsEmployee as boolean,",
+						"          IsSalesperson as boolean,",
+						"          UserPreferences as string,",
+						"          PhoneNumber as string,",
+						"          FaxNumber as string,",
+						"          EmailAddress as string,",
+						"          Photo as binary,",
+						"          CustomFields as string,",
+						"          OtherLanguages as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     limit: 100,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> PeopleToEmployee",
+						"source(output(",
+						"          {Employee Key} as integer,",
+						"          {WWI Employee ID} as integer,",
+						"          Employee as string,",
+						"          {Preferred Name} as string,",
+						"          {Is Salesperson} as boolean,",
+						"          Photo as binary,",
+						"          {Valid From} as timestamp,",
+						"          {Valid To} as timestamp,",
+						"          {Lineage Key} as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> ExistingDimensionEmployee",
+						"FilterEmployee select(mapColumn(",
+						"          {WWI Employee ID} = PersonID,",
+						"          Employee = FullName,",
+						"          {Preferred Name} = PreferredName,",
+						"          {Is Salesperson} = IsSalesperson,",
+						"          Photo,",
+						"          {Valid To} = ValidTo",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> selectColumns",
+						"PeopleToEmployee filter(IsEmployee==true()) ~> FilterEmployee",
+						"selectColumns derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
+						"UpdateValidFrom, ExistingDimensionEmployee lookup(UpdateValidFrom@{Valid From} != ExistingDimensionEmployee@{Valid From}",
+						"     && selectColumns@{WWI Employee ID} == ExistingDimensionEmployee@{WWI Employee ID},",
+						"     multiple: false,",
+						"     pickup: 'last',",
+						"     asc(ExistingDimensionEmployee@{Valid From}, true),",
+						"     broadcast: 'right')~> lookupValidTime",
+						"lookupValidTime select(mapColumn(",
+						"          {WWI Employee ID} = selectColumns@{WWI Employee ID},",
+						"          Employee = selectColumns@Employee,",
+						"          {Preferred Name} = selectColumns@{Preferred Name},",
+						"          {Is Salesperson} = selectColumns@{Is Salesperson},",
+						"          Photo = selectColumns@Photo,",
+						"          {Valid From} = UpdateValidFrom@{Valid From},",
+						"          {Valid To} = selectColumns@{Valid To},",
+						"          {Lineage Key}",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> selectColumns2",
+						"selectColumns2 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          {Employee Key} as integer,",
+						"          {WWI Employee ID} as integer,",
+						"          Employee as string,",
+						"          {Preferred Name} as string,",
+						"          {Is Salesperson} as boolean,",
+						"          Photo as binary,",
+						"          {Valid From} as timestamp,",
+						"          {Valid To} as timestamp,",
+						"          {Lineage Key} as integer",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> sinkNew"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/scdDimEmp')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "scdDimEmployee",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "scdDimEmployee",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"PeopleToEmployee": {
+										"TableName": "People",
+										"SchemaName": "Application"
+									},
+									"ExistingDimensionEmployee": {
+										"SchemaName": "Dimension",
+										"TableName": "Employee"
+									},
+									"sinkNew": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "ODStoDW"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/scdDimEmployee')]"
+			]
+		}
+	]
+}

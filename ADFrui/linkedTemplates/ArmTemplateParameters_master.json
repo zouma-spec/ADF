@@ -8,8 +8,29 @@
 		"AzureBlobStorage1_connectionString": {
 			"value": ""
 		},
+		"AzureDataLakeStorage1_accountKey": {
+			"value": ""
+		},
 		"AzureSqlDatabase1_connectionString": {
 			"value": ""
+		},
+		"NewAzureStorageLinkedService_connectionString": {
+			"value": ""
+		},
+		"linkedService1_connectionString": {
+			"value": ""
+		},
+		"scd2trial_connectionString": {
+			"value": ""
+		},
+		"wwi_DW_connectionString": {
+			"value": ""
+		},
+		"wwi_ODS_connectionString": {
+			"value": ""
+		},
+		"AzureDataLakeStorage1_properties_typeProperties_url": {
+			"value": "https://thisisaaccount.dfs.core.windows.net/"
 		},
 		"containerUri": {
 			"value": ""

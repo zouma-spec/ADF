@@ -11,9 +11,37 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
 		},
+		"AzureDataLakeStorage1_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'AzureDataLakeStorage1'"
+		},
 		"AzureSqlDatabase1_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase1'"
+		},
+		"NewAzureStorageLinkedService_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'NewAzureStorageLinkedService'"
+		},
+		"linkedService1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'linkedService1'"
+		},
+		"scd2trial_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'scd2trial'"
+		},
+		"wwi_DW_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'wwi_DW'"
+		},
+		"wwi_ODS_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'wwi_ODS'"
+		},
+		"AzureDataLakeStorage1_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://thisisaaccount.dfs.core.windows.net/"
 		}
 	},
 	"variables": {
@@ -34,10 +62,28 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorage1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('AzureDataLakeStorage1_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('AzureDataLakeStorage1_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabase1')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
 			"properties": {
+				"description": "OLTP database",
 				"annotations": [],
 				"type": "AzureSqlDatabase",
 				"typeProperties": {
@@ -47,25 +93,347 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AzureSqlTable1')]",
+			"name": "[concat(parameters('factoryName'), '/NewAzureStorageLinkedService')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('NewAzureStorageLinkedService_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/linkedService1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('linkedService1_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/scd2trial')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('scd2trial_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/wwi_DW')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('wwi_DW_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/wwi_ODS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('wwi_ODS_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DimEmp')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "AzureSqlDatabase1",
+					"referenceName": "scd2trial",
 					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "scd trial"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "EmpID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "surrogatekey",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EmpFunction",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Level",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Role",
+						"type": "nvarchar"
+					},
+					{
+						"name": "StartDate",
+						"type": "date"
+					},
+					{
+						"name": "EndDate",
+						"type": "date"
+					},
+					{
+						"name": "iscurrent",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "processtime",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"tableName": "[[dbo].[DimEmp]"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/scd2trial')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Employeefile')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "scd trial"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "Employee1.csv",
+						"container": "scd2trial"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "EmpID",
+						"type": "String"
+					},
+					{
+						"name": "Region",
+						"type": "String"
+					},
+					{
+						"name": "Status",
+						"type": "String"
+					},
+					{
+						"name": "Function",
+						"type": "String"
+					},
+					{
+						"name": "Level",
+						"type": "String"
+					},
+					{
+						"name": "Role",
+						"type": "String"
+					},
+					{
+						"name": "StartDate",
+						"type": "String"
+					},
+					{
+						"name": "EndDate",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ExistingDW')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "wwi_DW",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String"
+					},
+					"TableName": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "DW"
 				},
 				"annotations": [],
 				"type": "AzureSqlTable",
 				"schema": [],
-				"typeProperties": {}
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+				"[concat(variables('factoryId'), '/linkedServices/wwi_DW')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AzureSqlTable2')]",
+			"name": "[concat(parameters('factoryName'), '/ExistingDimEmp')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "wwi_DW",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "DW"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Employee Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI Employee ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Employee",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Preferred Name",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Is Salesperson",
+						"type": "bit"
+					},
+					{
+						"name": "Photo",
+						"type": "varbinary"
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Lineage Key",
+						"type": "int",
+						"precision": 10
+					}
+				],
+				"typeProperties": {
+					"schema": "Dimension",
+					"table": "Employee"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/wwi_DW')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ODS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "wwi_ODS",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"SchemaName": {
+						"type": "String"
+					},
+					"TableName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().SchemaName",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/wwi_ODS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/OLTPtoLoad')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -100,7 +468,7 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DelimitedText1')]",
+			"name": "[concat(parameters('factoryName'), '/SinkDataset')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -108,41 +476,98 @@
 					"referenceName": "AzureBlobStorage1",
 					"type": "LinkedServiceReference"
 				},
-				"parameters": {
-					"FileName": {
-						"type": "string"
-					}
-				},
 				"annotations": [],
-				"type": "DelimitedText",
+				"type": "Json",
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobStorageLocation",
-						"fileName": {
-							"value": "@dataset().FileName",
-							"type": "Expression"
-						},
-						"container": "container"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
+						"folderPath": "incrementalcopy",
+						"container": "adfnew"
+					}
 				},
-				"schema": []
+				"schema": {}
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/CopyTables')]",
+			"name": "[concat(parameters('factoryName'), '/SourceDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "PersonID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Name",
+						"type": "varchar"
+					},
+					{
+						"name": "LastModifytime",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "data_source_table"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/WatermarkDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "TableName",
+						"type": "varchar"
+					},
+					{
+						"name": "WatermarkValue",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "watermarktable"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopyPeople')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "AzureSqlTable1",
+						"name": "LookupNewWaterMarkActivity",
 						"type": "Lookup",
 						"dependsOn": [],
 						"policy": {
@@ -156,105 +581,327 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
-								"sqlReaderQuery": "SELECT * FROM INFORMATION_SCHEMA.TABLES\nWHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME NOT LIKE '%Archive' \n\tAND TABLE_SCHEMA <>'Purchasing' AND TABLE_NAME NOT IN ('TransactionTypes',\n\t                                                      'SystemParameters',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'BuyingGroups',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'CustomerTransactions',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'SpecialDeals',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'CustomerCategories',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'StockItemStockGroups',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'VehicleTemperatures',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'StockItemTransactions',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'StockItemHoldings',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'ColdRoomTemperatures',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'PaymentMethods',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'InvoiceLines',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t  'DeliveryMethods',\n\t\t\t\t\t\t\t\t\t\t\t\t                 'StateProvinces',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'Colors',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'StockGroups',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'Cities',\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t   'Countries')",
+								"sqlReaderQuery": "select MAX(ValidFrom) as NewWatermarkvalue from Application.People\n",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
 							"dataset": {
-								"referenceName": "AzureSqlTable1",
+								"referenceName": "OLTPtoLoad",
 								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
+								"parameters": {
+									"TableName": "People",
+									"SchemaName": "Application"
+								}
+							}
 						}
 					},
 					{
-						"name": "ForEachTable",
-						"type": "ForEach",
+						"name": "IncrementCopyPeople",
+						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "AzureSqlTable1",
+								"activity": "LookupNewWaterMarkActivity",
 								"dependencyConditions": [
-									"Completed"
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
 								]
 							}
 						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
-							"items": {
-								"value": "@activity('AzureSqlTable1').output.value",
-								"type": "Expression"
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from Application.People where ValidFrom > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and ValidFrom <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
 							},
-							"activities": [
-								{
-									"name": "Copy data1",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "AzureSqlSource",
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "DelimitedTextSink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											},
-											"formatSettings": {
-												"type": "DelimitedTextWriteSettings",
-												"quoteAllText": true,
-												"fileExtension": ".txt"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "AzureSqlTable2",
-											"type": "DatasetReference",
-											"parameters": {
-												"TableName": {
-													"value": "@item().table_name",
-													"type": "Expression"
-												},
-												"SchemaName": {
-													"value": "@item().table_schema",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "DelimitedText1",
-											"type": "DatasetReference",
-											"parameters": {
-												"FileName": {
-													"value": "@concat(item().table_schema,'_',item().table_name,'.csv')",
-													"type": "Expression"
-												}
-											}
-										}
-									]
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "OLTPtoLoad",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "People",
+									"SchemaName": "Application"
 								}
-							]
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ODS",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "dbo",
+									"TableName": "People"
+								}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IncrementCopyPeople",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "WatermarkDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "OLTPtoODS_incrementalLoad"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/OLTPtoLoad')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]",
+				"[concat(variables('factoryId'), '/datasets/WatermarkDataset')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopyPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupNewWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select MAX(LastModifytime) as NewWatermarkvalue from data_source_table\n",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "SourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Copy data1",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupNewWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from data_source_table where LastModifytime > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and LastModifytime <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "JsonSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "JsonWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "SourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "SinkDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy data1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "WatermarkDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
 						}
 					}
 				],
@@ -265,9 +912,279 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/AzureSqlTable1')]",
-				"[concat(variables('factoryId'), '/datasets/AzureSqlTable2')]",
-				"[concat(variables('factoryId'), '/datasets/DelimitedText1')]"
+				"[concat(variables('factoryId'), '/datasets/SourceDataset')]",
+				"[concat(variables('factoryId'), '/datasets/SinkDataset')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]",
+				"[concat(variables('factoryId'), '/datasets/WatermarkDataset')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DimEmployeeLoader2')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "scd trial"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "DimEmp",
+								"type": "DatasetReference"
+							},
+							"name": "DimEmployees",
+							"description": "Current rows in DimEmployees DW table"
+						},
+						{
+							"dataset": {
+								"referenceName": "Employeefile",
+								"type": "DatasetReference"
+							},
+							"name": "Employees1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DimEmp",
+								"type": "DatasetReference"
+							},
+							"name": "sinkNew",
+							"description": " "
+						},
+						{
+							"dataset": {
+								"referenceName": "DimEmp",
+								"type": "DatasetReference"
+							},
+							"name": "sinkUpdates",
+							"description": " "
+						},
+						{
+							"dataset": {
+								"referenceName": "DimEmp",
+								"type": "DatasetReference"
+							},
+							"name": "sinkInactive",
+							"description": " Age out old rows"
+						}
+					],
+					"transformations": [
+						{
+							"name": "TypeConversions"
+						},
+						{
+							"name": "TypeConversionsAndSetAttrs"
+						},
+						{
+							"name": "LookupIDs"
+						},
+						{
+							"name": "ConditionalSplit1"
+						},
+						{
+							"name": "checkForChanges"
+						},
+						{
+							"name": "SetAttrsForNew"
+						},
+						{
+							"name": "SetAttrsInactive",
+							"description": "make iscurrent 0"
+						},
+						{
+							"name": "SetAttrsUpdate"
+						},
+						{
+							"name": "NormNames"
+						},
+						{
+							"name": "InactiveFields"
+						},
+						{
+							"name": "AlterRow1"
+						},
+						{
+							"name": "NullFilter",
+							"description": "Filter out NULLs from source file"
+						},
+						{
+							"name": "NameNorm2"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          EmpID as integer,",
+						"          surrogatekey as string,",
+						"          Region as string,",
+						"          Status as string,",
+						"          EmpFunction as string,",
+						"          Level as string,",
+						"          Role as string,",
+						"          StartDate as date,",
+						"          EndDate as date,",
+						"          iscurrent as integer,",
+						"          processtime as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> DimEmployees",
+						"source(output(",
+						"          EmpID as string,",
+						"          Region as string,",
+						"          Status as string,",
+						"          Function as string,",
+						"          Level as string,",
+						"          Role as string,",
+						"          StartDate as string,",
+						"          EndDate as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> Employees1",
+						"DimEmployees derive(EmpID = toInteger(EmpID)) ~> TypeConversions",
+						"NullFilter derive(EmpID = toInteger(EmpID),",
+						"          StartDate = toDate(StartDate,'MM/dd/yyyy'),",
+						"          EndDate = toDate(EndDate,'MM/dd/yyyy'),",
+						"          processtime = currentTimestamp()) ~> TypeConversionsAndSetAttrs",
+						"TypeConversionsAndSetAttrs, TypeConversions lookup(TypeConversionsAndSetAttrs@EmpID == TypeConversions@EmpID,",
+						"     multiple: true,",
+						"     broadcast: 'auto')~> LookupIDs",
+						"NormNames split(isNull(iscurrent),",
+						"     disjoint: false) ~> ConditionalSplit1@(NewRow, CheckForUpdates)",
+						"NameNorm2, TypeConversions exists(NameNorm2@EmpID == TypeConversions@EmpID,",
+						"     negate:false,",
+						"     broadcast: 'auto')~> checkForChanges",
+						"ConditionalSplit1@NewRow derive(iscurrent = 1,",
+						"          surrogatekey = toString(crc32(EmpID,EmpFunction))) ~> SetAttrsForNew",
+						"checkForChanges derive(iscurrent = 0) ~> SetAttrsInactive",
+						"checkForChanges derive(iscurrent = 1) ~> SetAttrsUpdate",
+						"LookupIDs select(mapColumn(",
+						"          EmpID = TypeConversionsAndSetAttrs@EmpID,",
+						"          Region = Employees1@Region,",
+						"          Status = Employees1@Status,",
+						"          Level = Employees1@Level,",
+						"          Role = Employees1@Role,",
+						"          StartDate = TypeConversionsAndSetAttrs@StartDate,",
+						"          EndDate = TypeConversionsAndSetAttrs@EndDate,",
+						"          EmpFunction = Function,",
+						"          iscurrent,",
+						"          processtime = TypeConversionsAndSetAttrs@processtime,",
+						"          surrogatekey",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> NormNames",
+						"SetAttrsInactive select(mapColumn(",
+						"          EmpID,",
+						"          Status,",
+						"          EndDate,",
+						"          iscurrent,",
+						"          processtime",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> InactiveFields",
+						"InactiveFields alterRow(updateIf(true())) ~> AlterRow1",
+						"Employees1 filter(!isNull(EmpID)) ~> NullFilter",
+						"ConditionalSplit1@CheckForUpdates select(mapColumn(",
+						"          EmpID,",
+						"          Region,",
+						"          Status,",
+						"          Level,",
+						"          Role,",
+						"          StartDate,",
+						"          EndDate,",
+						"          EmpFunction,",
+						"          iscurrent,",
+						"          processtime,",
+						"          surrogatekey",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> NameNorm2",
+						"SetAttrsForNew sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          EmpID as integer,",
+						"          surrogatekey as string,",
+						"          Region as string,",
+						"          Status as string,",
+						"          EmpFunction as string,",
+						"          Level as string,",
+						"          Role as string,",
+						"          StartDate as date,",
+						"          EndDate as date,",
+						"          iscurrent as integer,",
+						"          processtime as timestamp",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     batchSize: 50,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     partitionBy('roundRobin', 4)) ~> sinkNew",
+						"SetAttrsUpdate sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          EmpID as integer,",
+						"          surrogatekey as string,",
+						"          Region as string,",
+						"          Status as string,",
+						"          EmpFunction as string,",
+						"          Level as string,",
+						"          Role as string,",
+						"          StartDate as date,",
+						"          EndDate as date,",
+						"          iscurrent as integer,",
+						"          processtime as timestamp",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     batchSize: 50,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     partitionBy('roundRobin', 4)) ~> sinkUpdates",
+						"AlterRow1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          EmpID as integer,",
+						"          surrogatekey as string,",
+						"          Region as string,",
+						"          Status as string,",
+						"          EmpFunction as string,",
+						"          Level as string,",
+						"          Role as string,",
+						"          StartDate as date,",
+						"          EndDate as date,",
+						"          iscurrent as integer,",
+						"          processtime as timestamp",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:false,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['EmpID'],",
+						"     format: 'table',",
+						"     batchSize: 50,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          EmpID,",
+						"          EndDate,",
+						"          iscurrent,",
+						"          processtime",
+						"     ),",
+						"     partitionBy('roundRobin', 4)) ~> sinkInactive"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DimEmp')]",
+				"[concat(variables('factoryId'), '/datasets/Employeefile')]"
 			]
 		}
 	]
