@@ -11,21 +11,9 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
 		},
-		"AzureDataLakeStorage1_accountKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accountKey' of 'AzureDataLakeStorage1'"
-		},
 		"AzureSqlDatabase1_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabase1'"
-		},
-		"NewAzureStorageLinkedService_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'NewAzureStorageLinkedService'"
-		},
-		"linkedService1_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'linkedService1'"
 		},
 		"scd2trial_connectionString": {
 			"type": "secureString",
@@ -39,15 +27,575 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'wwi_ODS'"
 		},
-		"AzureDataLakeStorage1_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://thisisaaccount.dfs.core.windows.net/"
+		"wwi_OLTP_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'wwi_OLTP'"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementCopySalesInvoices')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupNewWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select MAX(LastEditedWhen) as NewWatermarkvalue from Sales.Invoices\n",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "Invoices",
+									"SchemaName": "Sales"
+								}
+							}
+						}
+					},
+					{
+						"name": "IncrementCopySalesInvoices",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupNewWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from Sales.Invoices where LastEditedWhen > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and LastEditedWhen <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "Invoices",
+									"SchemaName": "Sales"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ODS",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Sales",
+									"TableName": "Invoices"
+								}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IncrementCopySalesInvoices",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_OLTP",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select * from dbo.watermarktable\nwhere TableName ='Sales.Invoices'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "watermarktable",
+									"SchemaName": "dbo"
+								}
+							},
+							"firstRowOnly": true
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "OLTPtoODS_incrementalLoad"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementCopySalesOrderlines')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupNewWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select MAX(LastEditedWhen) as NewWatermarkvalue from Sales.Orderlines\n",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "Orderlines",
+									"SchemaName": "Sales"
+								}
+							}
+						}
+					},
+					{
+						"name": "IncrementCopySalesOrderLines",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupNewWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from Sales.Orderlines where LastEditedWhen > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and LastEditedWhen <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "Orderlines",
+									"SchemaName": "Sales"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ODS",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Sales",
+									"TableName": "OrderLines"
+								}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IncrementCopySalesOrderLines",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_OLTP",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select * from dbo.watermarktable\nwhere TableName ='Sales.Orderlines'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "watermarktable",
+									"SchemaName": "dbo"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "OLTPtoODS_incrementalLoad"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementCopySalesOrders')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupNewWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select MAX(LastEditedWhen) as NewWatermarkvalue from Sales.Orders\n",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "Orders",
+									"SchemaName": "Sales"
+								}
+							}
+						}
+					},
+					{
+						"name": "IncrementCopySalesOrders",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupNewWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from Sales.Orders where LastEditedWhen > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and LastEditedWhen <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "Orders",
+									"SchemaName": "Sales"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ODS",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Sales",
+									"TableName": "Orders"
+								}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IncrementCopySalesOrders",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_OLTP",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select * from dbo.watermarktable\nwhere TableName ='Sales.Orders'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "watermarktable",
+									"SchemaName": "dbo"
+								}
+							},
+							"firstRowOnly": true
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "OLTPtoODS_incrementalLoad"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
+			]
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/IncrementalCopyPeople')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -74,7 +622,7 @@
 								"partitionOption": "None"
 							},
 							"dataset": {
-								"referenceName": "OLTPtoLoad",
+								"referenceName": "OLTP",
 								"type": "DatasetReference",
 								"parameters": {
 									"TableName": "People",
@@ -127,7 +675,7 @@
 						},
 						"inputs": [
 							{
-								"referenceName": "OLTPtoLoad",
+								"referenceName": "OLTP",
 								"type": "DatasetReference",
 								"parameters": {
 									"TableName": "People",
@@ -140,7 +688,7 @@
 								"referenceName": "ODS",
 								"type": "DatasetReference",
 								"parameters": {
-									"SchemaName": "dbo",
+									"SchemaName": "Application",
 									"TableName": "People"
 								}
 							}
@@ -185,7 +733,7 @@
 							}
 						},
 						"linkedServiceName": {
-							"referenceName": "AzureSqlDatabase1",
+							"referenceName": "wwi_OLTP",
 							"type": "LinkedServiceReference"
 						}
 					},
@@ -208,9 +756,12 @@
 								"partitionOption": "None"
 							},
 							"dataset": {
-								"referenceName": "WatermarkDataset",
+								"referenceName": "OLTP",
 								"type": "DatasetReference",
-								"parameters": {}
+								"parameters": {
+									"TableName": "watermarktable",
+									"SchemaName": "dbo"
+								}
 							}
 						}
 					}
@@ -225,14 +776,13 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/OLTPtoLoad')]",
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
 				"[concat(variables('factoryId'), '/datasets/ODS')]",
-				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]",
-				"[concat(variables('factoryId'), '/datasets/WatermarkDataset')]"
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/IncrementalCopyPipeline')]",
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopySalesCustomers')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -252,19 +802,22 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
-								"sqlReaderQuery": "select MAX(LastModifytime) as NewWatermarkvalue from data_source_table\n",
+								"sqlReaderQuery": "select MAX(ValidFrom) as NewWatermarkvalue from [Sales].[Customers]\n",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
 							"dataset": {
-								"referenceName": "SourceDataset",
+								"referenceName": "OLTP",
 								"type": "DatasetReference",
-								"parameters": {}
+								"parameters": {
+									"TableName": "Customers",
+									"SchemaName": "Sales"
+								}
 							}
 						}
 					},
 					{
-						"name": "Copy data1",
+						"name": "IncrementSalesCustomers",
 						"type": "Copy",
 						"dependsOn": [
 							{
@@ -292,35 +845,37 @@
 							"source": {
 								"type": "AzureSqlSource",
 								"sqlReaderQuery": {
-									"value": "select * from data_source_table where LastModifytime > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and LastModifytime <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"value": "select * from [Sales].[Customers] where ValidFrom > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and ValidFrom <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
 									"type": "Expression"
 								},
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
 							"sink": {
-								"type": "JsonSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "JsonWriteSettings"
-								}
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
 							},
 							"enableStaging": false
 						},
 						"inputs": [
 							{
-								"referenceName": "SourceDataset",
+								"referenceName": "OLTP",
 								"type": "DatasetReference",
-								"parameters": {}
+								"parameters": {
+									"TableName": "Customers",
+									"SchemaName": "Sales"
+								}
 							}
 						],
 						"outputs": [
 							{
-								"referenceName": "SinkDataset",
+								"referenceName": "ODS",
 								"type": "DatasetReference",
-								"parameters": {}
+								"parameters": {
+									"SchemaName": "Sales",
+									"TableName": "Customers"
+								}
 							}
 						]
 					},
@@ -329,7 +884,7 @@
 						"type": "SqlServerStoredProcedure",
 						"dependsOn": [
 							{
-								"activity": "Copy data1",
+								"activity": "IncrementSalesCustomers",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -363,7 +918,7 @@
 							}
 						},
 						"linkedServiceName": {
-							"referenceName": "AzureSqlDatabase1",
+							"referenceName": "wwi_OLTP",
 							"type": "LinkedServiceReference"
 						}
 					},
@@ -382,13 +937,17 @@
 						"typeProperties": {
 							"source": {
 								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select * from dbo.watermarktable\nwhere TableName ='Sales.Customers'",
 								"queryTimeout": "02:00:00",
 								"partitionOption": "None"
 							},
 							"dataset": {
-								"referenceName": "WatermarkDataset",
+								"referenceName": "OLTP",
 								"type": "DatasetReference",
-								"parameters": {}
+								"parameters": {
+									"TableName": "watermarktable",
+									"SchemaName": "dbo"
+								}
 							}
 						}
 					}
@@ -397,23 +956,397 @@
 					"elapsedTimeMetric": {},
 					"cancelAfter": {}
 				},
+				"folder": {
+					"name": "OLTPtoODS_incrementalLoad"
+				},
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/SourceDataset')]",
-				"[concat(variables('factoryId'), '/datasets/SinkDataset')]",
-				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]",
-				"[concat(variables('factoryId'), '/datasets/WatermarkDataset')]"
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/scdDimEmp')]",
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopyWarehousePackageTypes')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "scdDimEmployee",
+						"name": "LookupNewWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select MAX(ValidFrom) as NewWatermarkvalue from Warehouse.PackageTypes",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "PackageTypes",
+									"SchemaName": "Warehouse"
+								}
+							}
+						}
+					},
+					{
+						"name": "IncrementWarehouseStockItems",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupNewWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from Warehouse.PackageTypes where ValidFrom > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and ValidFrom <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "PackageTypes",
+									"SchemaName": "Warehouse"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ODS",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Warehouse",
+									"TableName": "PackageTypes"
+								}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IncrementWarehouseStockItems",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_OLTP",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select * from dbo.watermarktable\nwhere TableName = 'Warehouse.PackageTypes'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "watermarktable",
+									"SchemaName": "dbo"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "OLTPtoODS_incrementalLoad"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopyWarehouseStockItems')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupNewWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select MAX(ValidFrom) as NewWatermarkvalue from Warehouse.StockItems",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "StockItems",
+									"SchemaName": "Warehouse"
+								}
+							}
+						}
+					},
+					{
+						"name": "IncrementWarehouseStockItems",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupNewWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from Warehouse.StockItems where ValidFrom > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and ValidFrom <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "StockItems",
+									"SchemaName": "Warehouse"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ODS",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Warehouse",
+									"TableName": "StockItems"
+								}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IncrementWarehouseStockItems",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_OLTP",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select * from dbo.watermarktable\nwhere TableName = 'Warehouse.StockItems'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": "watermarktable",
+									"SchemaName": "dbo"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "OLTPtoODS_incrementalLoad"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_FactOrderNew')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ODStoDW_FactOrder",
 						"type": "ExecuteDataFlow",
 						"dependsOn": [],
 						"policy": {
@@ -426,19 +1359,34 @@
 						"userProperties": [],
 						"typeProperties": {
 							"dataflow": {
-								"referenceName": "scdDimEmployee",
+								"referenceName": "ODStoDW_FactOrder",
 								"type": "DataFlowReference",
 								"parameters": {},
 								"datasetParameters": {
-									"PeopleToEmployee": {
-										"TableName": "People",
-										"SchemaName": "Application"
+									"SalesOrders": {
+										"SchemaName": "Sales",
+										"TableName": "Orders"
 									},
-									"ExistingDimensionEmployee": {
-										"SchemaName": "Dimension",
-										"TableName": "Employee"
+									"SalesOrderLines": {
+										"SchemaName": "Sales",
+										"TableName": "orderLines"
 									},
-									"sinkNew": {}
+									"WarehouseStockItems": {
+										"SchemaName": "Warehouse",
+										"TableName": "StockItems"
+									},
+									"WarehousePackageTypes": {
+										"SchemaName": "Warehouse",
+										"TableName": "PackageTypes"
+									},
+									"SalesCustomers": {
+										"SchemaName": "Sales",
+										"TableName": "Customers"
+									},
+									"sinktoFactOrderNewTable": {
+										"SchemaName": "Fact",
+										"TableName": "OrderNew"
+									}
 								}
 							},
 							"staging": {},
@@ -460,147 +1408,588 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/scdDimEmployee')]"
+				"[concat(variables('factoryId'), '/dataflows/ODStoDW_FactOrder')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DimEmp')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_scdDimCustomer')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"linkedServiceName": {
-					"referenceName": "scd2trial",
-					"type": "LinkedServiceReference"
-				},
-				"folder": {
-					"name": "scd trial"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
+				"activities": [
 					{
-						"name": "EmpID",
-						"type": "int",
-						"precision": 10
+						"name": "LookupLastValidFrom",
+						"description": "look up the [valid To] from the last  updated batch",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "ODStoDW_scdDimCustomer",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Customer]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Dimension",
+									"TableName": "Customer"
+								}
+							}
+						}
 					},
 					{
-						"name": "surrogatekey",
-						"type": "nvarchar"
+						"name": "LookupNewValidFrom",
+						"description": "Look up the [valid From] from this new updated batch",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "ODStoDW_scdDimCustomer",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Customer]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Dimension",
+									"TableName": "Customer"
+								}
+							}
+						}
 					},
 					{
-						"name": "Region",
-						"type": "nvarchar"
+						"name": "Stored procedure usp_updateLastsValidTo",
+						"description": "Update the [Valid To] from the last  updated batch ",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "LookupLastValidFrom",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupNewValidFrom",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "dbo.usp_updateLastsValidTo",
+							"storedProcedureParameters": {
+								"NewValidFrom": {
+									"value": {
+										"value": "@{activity('LookupNewValidFrom').output.firstRow.NewValidFrom}",
+										"type": "Expression"
+									},
+									"type": "Datetime"
+								},
+								"LastValidFrom": {
+									"value": {
+										"value": "@{activity('LookupLastValidFrom').output.firstRow.LastValidFrom}",
+										"type": "Expression"
+									},
+									"type": "Datetime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_DW",
+							"type": "LinkedServiceReference"
+						}
 					},
 					{
-						"name": "Status",
-						"type": "nvarchar"
-					},
-					{
-						"name": "EmpFunction",
-						"type": "nvarchar"
-					},
-					{
-						"name": "Level",
-						"type": "nvarchar"
-					},
-					{
-						"name": "Role",
-						"type": "nvarchar"
-					},
-					{
-						"name": "StartDate",
-						"type": "date"
-					},
-					{
-						"name": "EndDate",
-						"type": "date"
-					},
-					{
-						"name": "iscurrent",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "processtime",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
+						"name": "ODStoDW_scdDimCustomer",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "ODStoDW_scdDimCustomer",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SalesCustomersA": {
+										"SchemaName": "Sales",
+										"TableName": "Customers"
+									},
+									"SalesCustomerCategories": {
+										"TableName": "Sales",
+										"SchemaName": "CustomerCategories"
+									},
+									"SalesBuyingGroups": {
+										"TableName": "BuyingGroups",
+										"SchemaName": "Sales"
+									},
+									"ApplicationPeople": {
+										"SchemaName": "Application",
+										"TableName": "People"
+									},
+									"SalesCustomersB": {
+										"SchemaName": "Sales",
+										"TableName": "Customers"
+									},
+									"ExistingDimCustomer": {
+										"SchemaName": "Dimension",
+										"TableName": "Customer"
+									},
+									"sink2": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
 					}
 				],
-				"typeProperties": {
-					"tableName": "[[dbo].[DimEmp]"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/scd2trial')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Employeefile')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "AzureBlobStorage1",
-					"type": "LinkedServiceReference"
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
 				},
 				"folder": {
-					"name": "scd trial"
+					"name": "ODStoDW"
 				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobStorageLocation",
-						"fileName": "Employee1.csv",
-						"container": "scd2trial"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": [
-					{
-						"name": "EmpID",
-						"type": "String"
-					},
-					{
-						"name": "Region",
-						"type": "String"
-					},
-					{
-						"name": "Status",
-						"type": "String"
-					},
-					{
-						"name": "Function",
-						"type": "String"
-					},
-					{
-						"name": "Level",
-						"type": "String"
-					},
-					{
-						"name": "Role",
-						"type": "String"
-					},
-					{
-						"name": "StartDate",
-						"type": "String"
-					},
-					{
-						"name": "EndDate",
-						"type": "String"
-					}
-				]
+				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+				"[concat(variables('factoryId'), '/datasets/DW')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_DW')]",
+				"[concat(variables('factoryId'), '/dataflows/ODStoDW_scdDimCustomer')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ExistingDW')]",
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_scdDimEmployee')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupLastValidFrom",
+						"description": "look up the [valid To] from the last  updated batch",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "ODStoDW_scdDimEmployee",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Employee]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Dimension",
+									"TableName": "Employee"
+								}
+							}
+						}
+					},
+					{
+						"name": "ODStoDW_scdDimEmployee",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "ODStoDW_scdDimEmployee",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"PeopleToEmployee": {
+										"SchemaName": "Application",
+										"TableName": "People"
+									},
+									"ExistingDimensionEmployee": {
+										"SchemaName": "Dimension",
+										"TableName": "Employee"
+									},
+									"sinkNew": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "LookupNewValidFrom",
+						"description": "Look up the [valid From] from this new updated batch",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "ODStoDW_scdDimEmployee",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Employee]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Dimension",
+									"TableName": "Employee"
+								}
+							}
+						}
+					},
+					{
+						"name": "Stored procedure usp_updateLastsValidTo",
+						"description": "Update the [Valid To] from the last  updated batch ",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "LookupLastValidFrom",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupNewValidFrom",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "dbo.usp_updateLastsValidTo",
+							"storedProcedureParameters": {
+								"NewValidFrom": {
+									"value": {
+										"value": "@activity('LookupNewValidFrom').output.firstRow.NewValidFrom",
+										"type": "Expression"
+									},
+									"type": "Datetime"
+								},
+								"LastValidFrom": {
+									"value": {
+										"value": "@activity('LookupLastValidFrom').output.firstRow.LastValidFrom",
+										"type": "Expression"
+									},
+									"type": "Datetime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_DW",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "ODStoDW"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DW')]",
+				"[concat(variables('factoryId'), '/dataflows/ODStoDW_scdDimEmployee')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_DW')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_scdDimStockItems')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupLastValidFrom",
+						"description": "look up the [valid To] from the last  updated batch",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "ODStoDW_scdDimStockItems",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Stock Item]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Dimension",
+									"TableName": "Stock Item"
+								}
+							}
+						}
+					},
+					{
+						"name": "LookupNewValidFrom",
+						"description": "Look up the [valid From] from this new updated batch",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "ODStoDW_scdDimStockItems",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Stock Item]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference",
+								"parameters": {
+									"SchemaName": "Dimension",
+									"TableName": "Stock Item"
+								}
+							}
+						}
+					},
+					{
+						"name": "Stored procedure usp_updateLastsValidTo",
+						"description": "Update the [Valid To] from the last  updated batch ",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "LookupLastValidFrom",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupNewValidFrom",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "dbo.usp_updateLastsValidTo",
+							"storedProcedureParameters": {
+								"NewValidFrom": {
+									"value": {
+										"value": "@{activity('LookupNewValidFrom').output.firstRow.NewValidFrom}",
+										"type": "Expression"
+									},
+									"type": "Datetime"
+								},
+								"LastValidFrom": {
+									"value": {
+										"value": "@{activity('LookupLastValidFrom').output.firstRow.LastValidFrom}",
+										"type": "Expression"
+									},
+									"type": "Datetime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "wwi_DW",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "ODStoDW_scdDimStockItems",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "ODStoDW_scdDimStockItems",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"WarehouseStockItems": {
+										"SchemaName": "Warehouse",
+										"TableName": "StockItems"
+									},
+									"WarehouseColors": {
+										"TableName": "Colors",
+										"SchemaName": "Warehouse"
+									},
+									"cWarehousePackageTypes": {
+										"SchemaName": "Warehouse",
+										"TableName": "PackageTypes"
+									},
+									"dWarehousePackageTypes": {
+										"SchemaName": "Warehouse",
+										"TableName": "PackageTypes"
+									},
+									"ExistingDimStockItem": {
+										"SchemaName": "Dimension",
+										"TableName": "Stock Item"
+									},
+									"sinktoDimStockItem": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "ODStoDW"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DW')]",
+				"[concat(variables('factoryId'), '/linkedServices/wwi_DW')]",
+				"[concat(variables('factoryId'), '/dataflows/ODStoDW_scdDimStockItems')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DW')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -631,6 +2020,80 @@
 						"value": "@dataset().TableName",
 						"type": "Expression"
 					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/wwi_DW')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ExistingDimCustomer')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "wwi_DW",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "DW"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Customer Key",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "WWI Customer ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Customer",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Bill To Customer",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Category",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Buying Group",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Primary Contact",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Postal Code",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Valid From",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Valid To",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "Lineage Key",
+						"type": "int",
+						"precision": 10
+					}
+				],
+				"typeProperties": {
+					"schema": "Dimension",
+					"table": "Customer"
 				}
 			},
 			"dependsOn": [
@@ -704,6 +2167,30 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ExistingDimStockItem')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "wwi_DW",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "DW"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "Dimension",
+					"table": "Stock Item"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/wwi_DW')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ODS')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -739,12 +2226,12 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/OLTPtoLoad')]",
+			"name": "[concat(parameters('factoryName'), '/OLTP')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "AzureSqlDatabase1",
+					"referenceName": "wwi_OLTP",
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
@@ -770,100 +2257,7 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SinkDataset')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "AzureBlobStorage1",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "Json",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobStorageLocation",
-						"folderPath": "incrementalcopy",
-						"container": "adfnew"
-					}
-				},
-				"schema": {}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SourceDataset')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "AzureSqlDatabase1",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "PersonID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "Name",
-						"type": "varchar"
-					},
-					{
-						"name": "LastModifytime",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "data_source_table"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/WatermarkDataset')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "AzureSqlDatabase1",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "TableName",
-						"type": "varchar"
-					},
-					{
-						"name": "WatermarkValue",
-						"type": "datetime",
-						"precision": 23,
-						"scale": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "watermarktable"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+				"[concat(variables('factoryId'), '/linkedServices/wwi_OLTP')]"
 			]
 		},
 		{
@@ -880,23 +2274,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorage1')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureBlobFS",
-				"typeProperties": {
-					"url": "[parameters('AzureDataLakeStorage1_properties_typeProperties_url')]",
-					"accountKey": {
-						"type": "SecureString",
-						"value": "[parameters('AzureDataLakeStorage1_accountKey')]"
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabase1')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -906,32 +2283,6 @@
 				"type": "AzureSqlDatabase",
 				"typeProperties": {
 					"connectionString": "[parameters('AzureSqlDatabase1_connectionString')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/NewAzureStorageLinkedService')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureBlobStorage",
-				"typeProperties": {
-					"connectionString": "[parameters('NewAzureStorageLinkedService_connectionString')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/linkedService1')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"connectionString": "[parameters('linkedService1_connectionString')]"
 				}
 			},
 			"dependsOn": []
@@ -976,276 +2327,20 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DimEmployeeLoader2')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
+			"name": "[concat(parameters('factoryName'), '/wwi_OLTP')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"folder": {
-					"name": "scd trial"
-				},
-				"type": "MappingDataFlow",
+				"annotations": [],
+				"type": "AzureSqlDatabase",
 				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "DimEmp",
-								"type": "DatasetReference"
-							},
-							"name": "DimEmployees",
-							"description": "Current rows in DimEmployees DW table"
-						},
-						{
-							"dataset": {
-								"referenceName": "Employeefile",
-								"type": "DatasetReference"
-							},
-							"name": "Employees1"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "DimEmp",
-								"type": "DatasetReference"
-							},
-							"name": "sinkNew",
-							"description": " "
-						},
-						{
-							"dataset": {
-								"referenceName": "DimEmp",
-								"type": "DatasetReference"
-							},
-							"name": "sinkUpdates",
-							"description": " "
-						},
-						{
-							"dataset": {
-								"referenceName": "DimEmp",
-								"type": "DatasetReference"
-							},
-							"name": "sinkInactive",
-							"description": " Age out old rows"
-						}
-					],
-					"transformations": [
-						{
-							"name": "TypeConversions"
-						},
-						{
-							"name": "TypeConversionsAndSetAttrs"
-						},
-						{
-							"name": "LookupIDs"
-						},
-						{
-							"name": "ConditionalSplit1"
-						},
-						{
-							"name": "checkForChanges"
-						},
-						{
-							"name": "SetAttrsForNew"
-						},
-						{
-							"name": "SetAttrsInactive",
-							"description": "make iscurrent 0"
-						},
-						{
-							"name": "SetAttrsUpdate"
-						},
-						{
-							"name": "NormNames"
-						},
-						{
-							"name": "InactiveFields"
-						},
-						{
-							"name": "AlterRow1"
-						},
-						{
-							"name": "NullFilter",
-							"description": "Filter out NULLs from source file"
-						},
-						{
-							"name": "NameNorm2"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          EmpID as integer,",
-						"          surrogatekey as string,",
-						"          Region as string,",
-						"          Status as string,",
-						"          EmpFunction as string,",
-						"          Level as string,",
-						"          Role as string,",
-						"          StartDate as date,",
-						"          EndDate as date,",
-						"          iscurrent as integer,",
-						"          processtime as timestamp",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     isolationLevel: 'READ_UNCOMMITTED',",
-						"     format: 'table') ~> DimEmployees",
-						"source(output(",
-						"          EmpID as string,",
-						"          Region as string,",
-						"          Status as string,",
-						"          Function as string,",
-						"          Level as string,",
-						"          Role as string,",
-						"          StartDate as string,",
-						"          EndDate as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> Employees1",
-						"DimEmployees derive(EmpID = toInteger(EmpID)) ~> TypeConversions",
-						"NullFilter derive(EmpID = toInteger(EmpID),",
-						"          StartDate = toDate(StartDate,'MM/dd/yyyy'),",
-						"          EndDate = toDate(EndDate,'MM/dd/yyyy'),",
-						"          processtime = currentTimestamp()) ~> TypeConversionsAndSetAttrs",
-						"TypeConversionsAndSetAttrs, TypeConversions lookup(TypeConversionsAndSetAttrs@EmpID == TypeConversions@EmpID,",
-						"     multiple: true,",
-						"     broadcast: 'auto')~> LookupIDs",
-						"NormNames split(isNull(iscurrent),",
-						"     disjoint: false) ~> ConditionalSplit1@(NewRow, CheckForUpdates)",
-						"NameNorm2, TypeConversions exists(NameNorm2@EmpID == TypeConversions@EmpID,",
-						"     negate:false,",
-						"     broadcast: 'auto')~> checkForChanges",
-						"ConditionalSplit1@NewRow derive(iscurrent = 1,",
-						"          surrogatekey = toString(crc32(EmpID,EmpFunction))) ~> SetAttrsForNew",
-						"checkForChanges derive(iscurrent = 0) ~> SetAttrsInactive",
-						"checkForChanges derive(iscurrent = 1) ~> SetAttrsUpdate",
-						"LookupIDs select(mapColumn(",
-						"          EmpID = TypeConversionsAndSetAttrs@EmpID,",
-						"          Region = Employees1@Region,",
-						"          Status = Employees1@Status,",
-						"          Level = Employees1@Level,",
-						"          Role = Employees1@Role,",
-						"          StartDate = TypeConversionsAndSetAttrs@StartDate,",
-						"          EndDate = TypeConversionsAndSetAttrs@EndDate,",
-						"          EmpFunction = Function,",
-						"          iscurrent,",
-						"          processtime = TypeConversionsAndSetAttrs@processtime,",
-						"          surrogatekey",
-						"     ),",
-						"     skipDuplicateMapInputs: false,",
-						"     skipDuplicateMapOutputs: false) ~> NormNames",
-						"SetAttrsInactive select(mapColumn(",
-						"          EmpID,",
-						"          Status,",
-						"          EndDate,",
-						"          iscurrent,",
-						"          processtime",
-						"     ),",
-						"     skipDuplicateMapInputs: false,",
-						"     skipDuplicateMapOutputs: false) ~> InactiveFields",
-						"InactiveFields alterRow(updateIf(true())) ~> AlterRow1",
-						"Employees1 filter(!isNull(EmpID)) ~> NullFilter",
-						"ConditionalSplit1@CheckForUpdates select(mapColumn(",
-						"          EmpID,",
-						"          Region,",
-						"          Status,",
-						"          Level,",
-						"          Role,",
-						"          StartDate,",
-						"          EndDate,",
-						"          EmpFunction,",
-						"          iscurrent,",
-						"          processtime,",
-						"          surrogatekey",
-						"     ),",
-						"     skipDuplicateMapInputs: false,",
-						"     skipDuplicateMapOutputs: false) ~> NameNorm2",
-						"SetAttrsForNew sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     input(",
-						"          EmpID as integer,",
-						"          surrogatekey as string,",
-						"          Region as string,",
-						"          Status as string,",
-						"          EmpFunction as string,",
-						"          Level as string,",
-						"          Role as string,",
-						"          StartDate as date,",
-						"          EndDate as date,",
-						"          iscurrent as integer,",
-						"          processtime as timestamp",
-						"     ),",
-						"     deletable:false,",
-						"     insertable:true,",
-						"     updateable:false,",
-						"     upsertable:false,",
-						"     format: 'table',",
-						"     batchSize: 50,",
-						"     errorHandlingOption: 'stopOnFirstError',",
-						"     partitionBy('roundRobin', 4)) ~> sinkNew",
-						"SetAttrsUpdate sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     input(",
-						"          EmpID as integer,",
-						"          surrogatekey as string,",
-						"          Region as string,",
-						"          Status as string,",
-						"          EmpFunction as string,",
-						"          Level as string,",
-						"          Role as string,",
-						"          StartDate as date,",
-						"          EndDate as date,",
-						"          iscurrent as integer,",
-						"          processtime as timestamp",
-						"     ),",
-						"     deletable:false,",
-						"     insertable:true,",
-						"     updateable:false,",
-						"     upsertable:false,",
-						"     format: 'table',",
-						"     batchSize: 50,",
-						"     errorHandlingOption: 'stopOnFirstError',",
-						"     partitionBy('roundRobin', 4)) ~> sinkUpdates",
-						"AlterRow1 sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     input(",
-						"          EmpID as integer,",
-						"          surrogatekey as string,",
-						"          Region as string,",
-						"          Status as string,",
-						"          EmpFunction as string,",
-						"          Level as string,",
-						"          Role as string,",
-						"          StartDate as date,",
-						"          EndDate as date,",
-						"          iscurrent as integer,",
-						"          processtime as timestamp",
-						"     ),",
-						"     deletable:false,",
-						"     insertable:false,",
-						"     updateable:true,",
-						"     upsertable:false,",
-						"     keys:['EmpID'],",
-						"     format: 'table',",
-						"     batchSize: 50,",
-						"     errorHandlingOption: 'stopOnFirstError',",
-						"     mapColumn(",
-						"          EmpID,",
-						"          EndDate,",
-						"          iscurrent,",
-						"          processtime",
-						"     ),",
-						"     partitionBy('roundRobin', 4)) ~> sinkInactive"
-					]
+					"connectionString": "[parameters('wwi_OLTP_connectionString')]"
 				}
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DimEmp')]",
-				"[concat(variables('factoryId'), '/datasets/Employeefile')]"
-			]
+			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/scdDimEmployee')]",
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_FactOrder')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -1257,14 +2352,602 @@
 					"sources": [
 						{
 							"dataset": {
-								"referenceName": "OLTPtoLoad",
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "SalesOrders",
+							"description": "Import SalesOrders table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "SalesOrderLines",
+							"description": "Import SalesOrderLines table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "WarehouseStockItems",
+							"description": "Import WarehouseStockItems table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "WarehousePackageTypes",
+							"description": "Import WarehousePackageTypes table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "SalesCustomers",
+							"description": "Import SalesCustomers table from ODS"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference"
+							},
+							"name": "sinktoFactOrderNewTable",
+							"description": "Load date to DW "
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSalesOrderLines"
+						},
+						{
+							"name": "joinSalesCustomers"
+						},
+						{
+							"name": "joinWarehouseStockItems"
+						},
+						{
+							"name": "joinWarehousePackageTypes"
+						},
+						{
+							"name": "select1",
+							"description": "Select columns and name to 'City Key, Customer Key, Stock Item Key, Order Date Key, Picked Date Key, Salesperson Key, Picker Key, WWI Order ID, WWI Backorder ID, Description, Package, Quantity, Unit Price, Tax Rate'"
+						},
+						{
+							"name": "derivedColumn1",
+							"description": "Creating columns {Total Excluding Tax}, {Tax Amount}, {Total Including Tax}"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          OrderID as integer,",
+						"          CustomerID as integer,",
+						"          SalespersonPersonID as integer,",
+						"          PickedByPersonID as integer,",
+						"          ContactPersonID as integer,",
+						"          BackorderOrderID as integer,",
+						"          OrderDate as date,",
+						"          ExpectedDeliveryDate as date,",
+						"          CustomerPurchaseOrderNumber as string,",
+						"          IsUndersupplyBackordered as boolean,",
+						"          Comments as string,",
+						"          DeliveryInstructions as string,",
+						"          InternalComments as string,",
+						"          PickingCompletedWhen as timestamp,",
+						"          LastEditedBy as integer,",
+						"          LastEditedWhen as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SalesOrders",
+						"source(output(",
+						"          OrderLineID as integer,",
+						"          OrderID as integer,",
+						"          StockItemID as integer,",
+						"          Description as string,",
+						"          PackageTypeID as integer,",
+						"          Quantity as integer,",
+						"          UnitPrice as decimal(18,2),",
+						"          TaxRate as decimal(18,3),",
+						"          PickedQuantity as integer,",
+						"          PickingCompletedWhen as timestamp,",
+						"          LastEditedBy as integer,",
+						"          LastEditedWhen as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SalesOrderLines",
+						"source(output(",
+						"          StockItemID as integer,",
+						"          StockItemName as string,",
+						"          SupplierID as integer,",
+						"          ColorID as integer,",
+						"          UnitPackageID as integer,",
+						"          OuterPackageID as integer,",
+						"          Brand as string,",
+						"          Size as string,",
+						"          LeadTimeDays as integer,",
+						"          QuantityPerOuter as integer,",
+						"          IsChillerStock as boolean,",
+						"          Barcode as string,",
+						"          TaxRate as decimal(18,3),",
+						"          UnitPrice as decimal(18,2),",
+						"          RecommendedRetailPrice as decimal(18,2),",
+						"          TypicalWeightPerUnit as decimal(18,3),",
+						"          MarketingComments as string,",
+						"          InternalComments as string,",
+						"          Photo as binary,",
+						"          CustomFields as string,",
+						"          Tags as string,",
+						"          SearchDetails as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> WarehouseStockItems",
+						"source(output(",
+						"          PackageTypeID as integer,",
+						"          PackageTypeName as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> WarehousePackageTypes",
+						"source(output(",
+						"          CustomerID as integer,",
+						"          CustomerName as string,",
+						"          BillToCustomerID as integer,",
+						"          CustomerCategoryID as integer,",
+						"          BuyingGroupID as integer,",
+						"          PrimaryContactPersonID as integer,",
+						"          AlternateContactPersonID as integer,",
+						"          DeliveryMethodID as integer,",
+						"          DeliveryCityID as integer,",
+						"          PostalCityID as integer,",
+						"          CreditLimit as decimal(18,2),",
+						"          AccountOpenedDate as date,",
+						"          StandardDiscountPercentage as decimal(18,3),",
+						"          IsStatementSent as boolean,",
+						"          IsOnCreditHold as boolean,",
+						"          PaymentDays as integer,",
+						"          PhoneNumber as string,",
+						"          FaxNumber as string,",
+						"          DeliveryRun as string,",
+						"          RunPosition as string,",
+						"          WebsiteURL as string,",
+						"          DeliveryAddressLine1 as string,",
+						"          DeliveryAddressLine2 as string,",
+						"          DeliveryPostalCode as string,",
+						"          DeliveryLocation as binary,",
+						"          PostalAddressLine1 as string,",
+						"          PostalAddressLine2 as string,",
+						"          PostalPostalCode as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SalesCustomers",
+						"SalesOrders, SalesOrderLines join(SalesOrders@OrderID == SalesOrderLines@OrderID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSalesOrderLines",
+						"joinSalesOrderLines, SalesCustomers join(SalesOrders@CustomerID == SalesCustomers@CustomerID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSalesCustomers",
+						"joinSalesCustomers, WarehouseStockItems join(SalesOrderLines@StockItemID == WarehouseStockItems@StockItemID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinWarehouseStockItems",
+						"joinWarehouseStockItems, WarehousePackageTypes join(UnitPackageID == WarehousePackageTypes@PackageTypeID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinWarehousePackageTypes",
+						"joinWarehousePackageTypes select(mapColumn(",
+						"          {City Key} = DeliveryCityID,",
+						"          {Customer Key} = SalesOrders@CustomerID,",
+						"          {Stock Item Key} = SalesOrderLines@StockItemID,",
+						"          {Order Date Key} = OrderDate,",
+						"          {Picked Date Key} = SalesOrders@PickingCompletedWhen,",
+						"          {Salesperson Key} = SalespersonPersonID,",
+						"          {Picker Key} = PickedByPersonID,",
+						"          {WWI Order ID} = SalesOrders@OrderID,",
+						"          {WWI Backorder ID} = BackorderOrderID,",
+						"          Description,",
+						"          Package = PackageTypeName,",
+						"          Quantity,",
+						"          {Unit Price} = SalesOrderLines@UnitPrice,",
+						"          {Tax Rate} = SalesOrderLines@TaxRate",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 derive({Total Excluding Tax} = {Unit Price}*Quantity,",
+						"          {Tax Amount} = Quantity*{Unit Price}*{Tax Rate}/100,",
+						"          {Total Including Tax} = Quantity*{Unit Price}*(1+{Tax Rate}/100)) ~> derivedColumn1",
+						"derivedColumn1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> sinktoFactOrderNewTable"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/datasets/DW')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_scdDimCustomer')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "ODStoDW"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "SalesCustomersA",
+							"description": "Import SalesCustomers table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference"
+							},
+							"name": "SalesCustomerCategories",
+							"description": "Import SalesCustomerCategories table from OLTP"
+						},
+						{
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference"
+							},
+							"name": "SalesBuyingGroups",
+							"description": "Add SalesBuyingGroups table dataset"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "ApplicationPeople",
+							"description": "Add Application.People table dataset"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "SalesCustomersB",
+							"description": "Import Sales.Customers table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference"
+							},
+							"name": "ExistingDimCustomer"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ExistingDimCustomer",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinSalesCustomersA"
+						},
+						{
+							"name": "joinSalesCustomerCategories"
+						},
+						{
+							"name": "joinSalesBuyingGroups"
+						},
+						{
+							"name": "joinApplicationPeople"
+						},
+						{
+							"name": "DataPreparedToLoad"
+						},
+						{
+							"name": "UpdateValidFrom",
+							"description": "Change Valid From Time To Current TimeStamp"
+						},
+						{
+							"name": "lookup1"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "sort1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          CustomerID as integer,",
+						"          CustomerName as string,",
+						"          BillToCustomerID as integer,",
+						"          CustomerCategoryID as integer,",
+						"          BuyingGroupID as integer,",
+						"          PrimaryContactPersonID as integer,",
+						"          AlternateContactPersonID as integer,",
+						"          DeliveryMethodID as integer,",
+						"          DeliveryCityID as integer,",
+						"          PostalCityID as integer,",
+						"          CreditLimit as decimal(18,2),",
+						"          AccountOpenedDate as date,",
+						"          StandardDiscountPercentage as decimal(18,3),",
+						"          IsStatementSent as boolean,",
+						"          IsOnCreditHold as boolean,",
+						"          PaymentDays as integer,",
+						"          PhoneNumber as string,",
+						"          FaxNumber as string,",
+						"          DeliveryRun as string,",
+						"          RunPosition as string,",
+						"          WebsiteURL as string,",
+						"          DeliveryAddressLine1 as string,",
+						"          DeliveryAddressLine2 as string,",
+						"          DeliveryPostalCode as string,",
+						"          DeliveryLocation as binary,",
+						"          PostalAddressLine1 as string,",
+						"          PostalAddressLine2 as string,",
+						"          PostalPostalCode as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SalesCustomersA",
+						"source(output(",
+						"          CustomerCategoryID as integer,",
+						"          CustomerCategoryName as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SalesCustomerCategories",
+						"source(output(",
+						"          BuyingGroupID as integer,",
+						"          BuyingGroupName as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SalesBuyingGroups",
+						"source(output(",
+						"          PersonID as integer,",
+						"          FullName as string,",
+						"          PreferredName as string,",
+						"          SearchName as string,",
+						"          IsPermittedToLogon as boolean,",
+						"          LogonName as string,",
+						"          IsExternalLogonProvider as boolean,",
+						"          HashedPassword as binary,",
+						"          IsSystemUser as boolean,",
+						"          IsEmployee as boolean,",
+						"          IsSalesperson as boolean,",
+						"          UserPreferences as string,",
+						"          PhoneNumber as string,",
+						"          FaxNumber as string,",
+						"          EmailAddress as string,",
+						"          Photo as binary,",
+						"          CustomFields as string,",
+						"          OtherLanguages as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> ApplicationPeople",
+						"source(output(",
+						"          CustomerID as integer,",
+						"          CustomerName as string,",
+						"          BillToCustomerID as integer,",
+						"          CustomerCategoryID as integer,",
+						"          BuyingGroupID as integer,",
+						"          PrimaryContactPersonID as integer,",
+						"          AlternateContactPersonID as integer,",
+						"          DeliveryMethodID as integer,",
+						"          DeliveryCityID as integer,",
+						"          PostalCityID as integer,",
+						"          CreditLimit as decimal(18,2),",
+						"          AccountOpenedDate as date,",
+						"          StandardDiscountPercentage as decimal(18,3),",
+						"          IsStatementSent as boolean,",
+						"          IsOnCreditHold as boolean,",
+						"          PaymentDays as integer,",
+						"          PhoneNumber as string,",
+						"          FaxNumber as string,",
+						"          DeliveryRun as string,",
+						"          RunPosition as string,",
+						"          WebsiteURL as string,",
+						"          DeliveryAddressLine1 as string,",
+						"          DeliveryAddressLine2 as string,",
+						"          DeliveryPostalCode as string,",
+						"          DeliveryLocation as binary,",
+						"          PostalAddressLine1 as string,",
+						"          PostalAddressLine2 as string,",
+						"          PostalPostalCode as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SalesCustomersB",
+						"source(output(",
+						"          {Customer Key} as integer,",
+						"          {WWI Customer ID} as integer,",
+						"          Customer as string,",
+						"          {Bill To Customer} as string,",
+						"          Category as string,",
+						"          {Buying Group} as string,",
+						"          {Primary Contact} as string,",
+						"          {Postal Code} as string,",
+						"          {Valid From} as timestamp,",
+						"          {Valid To} as timestamp,",
+						"          {Lineage Key} as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> ExistingDimCustomer",
+						"SalesCustomersA, SalesCustomersB join(SalesCustomersA@BillToCustomerID == SalesCustomersB@CustomerID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSalesCustomersA",
+						"joinSalesCustomersA, SalesCustomerCategories join(SalesCustomersA@CustomerCategoryID == SalesCustomerCategories@CustomerCategoryID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSalesCustomerCategories",
+						"joinSalesCustomerCategories, SalesBuyingGroups join(SalesCustomersA@BuyingGroupID == SalesBuyingGroups@BuyingGroupID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinSalesBuyingGroups",
+						"joinSalesBuyingGroups, ApplicationPeople join(SalesCustomersA@PrimaryContactPersonID == PersonID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinApplicationPeople",
+						"joinApplicationPeople select(mapColumn(",
+						"          {WWI Customer ID} = SalesCustomersA@CustomerID,",
+						"          Customer = SalesCustomersA@CustomerName,",
+						"          {Bill To Customer} = SalesCustomersB@CustomerName,",
+						"          Category = CustomerCategoryName,",
+						"          {Buying Group} = BuyingGroupName,",
+						"          {Primary Contact} = FullName,",
+						"          {Postal Code} = SalesCustomersA@DeliveryPostalCode,",
+						"          {Valid From} = SalesCustomersA@ValidFrom,",
+						"          {Valid To} = SalesCustomersA@ValidTo",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> DataPreparedToLoad",
+						"DataPreparedToLoad derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
+						"UpdateValidFrom, ExistingDimCustomer lookup(DataPreparedToLoad@{WWI Customer ID} == ExistingDimCustomer@{WWI Customer ID}",
+						"     && UpdateValidFrom@{Valid From} != ExistingDimCustomer@{Valid From},",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'right')~> lookup1",
+						"lookup1 select(mapColumn(",
+						"          {WWI Customer ID} = DataPreparedToLoad@{WWI Customer ID},",
+						"          Customer = DataPreparedToLoad@Customer,",
+						"          {Bill To Customer} = DataPreparedToLoad@{Bill To Customer},",
+						"          Category = DataPreparedToLoad@Category,",
+						"          {Buying Group} = DataPreparedToLoad@{Buying Group},",
+						"          {Primary Contact} = DataPreparedToLoad@{Primary Contact},",
+						"          {Postal Code} = DataPreparedToLoad@{Postal Code},",
+						"          {Valid From} = UpdateValidFrom@{Valid From},",
+						"          {Valid To} = DataPreparedToLoad@{Valid To}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 sort(asc({WWI Customer ID}, true)) ~> sort1",
+						"sort1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          {Customer Key} as integer,",
+						"          {WWI Customer ID} as integer,",
+						"          Customer as string,",
+						"          {Bill To Customer} as string,",
+						"          Category as string,",
+						"          {Buying Group} as string,",
+						"          {Primary Contact} as string,",
+						"          {Postal Code} as string,",
+						"          {Valid From} as timestamp,",
+						"          {Valid To} as timestamp,",
+						"          {Lineage Key} as integer",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> sink2"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/DW')]",
+				"[concat(variables('factoryId'), '/datasets/ExistingDimCustomer')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_scdDimEmployee')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "ODStoDW"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ODS",
 								"type": "DatasetReference"
 							},
 							"name": "PeopleToEmployee"
 						},
 						{
 							"dataset": {
-								"referenceName": "ExistingDW",
+								"referenceName": "DW",
 								"type": "DatasetReference"
 							},
 							"name": "ExistingDimensionEmployee"
@@ -1288,10 +2971,10 @@
 						},
 						{
 							"name": "UpdateValidFrom",
-							"description": "Creating/updating the columns ValidFrom to the current timestamp"
+							"description": "Creating/updating the columns ValidFrom to the current timestamp. This is for demonstration purpose so that we can see how data is loaded into the DW."
 						},
 						{
-							"name": "lookupValidTime"
+							"name": "lookupIDsandValidTime"
 						},
 						{
 							"name": "selectColumns2"
@@ -1358,8 +3041,8 @@
 						"     multiple: false,",
 						"     pickup: 'last',",
 						"     asc(ExistingDimensionEmployee@{Valid From}, true),",
-						"     broadcast: 'right')~> lookupValidTime",
-						"lookupValidTime select(mapColumn(",
+						"     broadcast: 'right')~> lookupIDsandValidTime",
+						"lookupIDsandValidTime select(mapColumn(",
 						"          {WWI Employee ID} = selectColumns@{WWI Employee ID},",
 						"          Employee = selectColumns@Employee,",
 						"          {Preferred Name} = selectColumns@{Preferred Name},",
@@ -1396,9 +3079,271 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/OLTPtoLoad')]",
-				"[concat(variables('factoryId'), '/datasets/ExistingDW')]",
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/datasets/DW')]",
 				"[concat(variables('factoryId'), '/datasets/ExistingDimEmp')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ODStoDW_scdDimStockItems')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "ODStoDW"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "WarehouseStockItems",
+							"description": "Import Warehouse.StockItems table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "OLTP",
+								"type": "DatasetReference"
+							},
+							"name": "WarehouseColors",
+							"description": "Import Warehouse.Colors table from OLTP"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "cWarehousePackageTypes",
+							"description": "Import Warehouse.PackageTypes table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "ODS",
+								"type": "DatasetReference"
+							},
+							"name": "dWarehousePackageTypes",
+							"description": "Import Warehouse.PackageTypes table from ODS"
+						},
+						{
+							"dataset": {
+								"referenceName": "DW",
+								"type": "DatasetReference"
+							},
+							"name": "ExistingDimStockItem",
+							"description": "Import ExistingDimStockItem table from DW"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ExistingDimStockItem",
+								"type": "DatasetReference"
+							},
+							"name": "sinktoDimStockItem",
+							"description": "Export data to ExistingDimStockItem in DW"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinWarehouseColors"
+						},
+						{
+							"name": "joincWarehousePackageTypes"
+						},
+						{
+							"name": "joindWarehousePackageTypes"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "lookupStockItemIDandValidTime"
+						},
+						{
+							"name": "UpdateValidFrom",
+							"description": "Change Valid From Time To Current TimeStamp"
+						},
+						{
+							"name": "select2"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          StockItemID as integer,",
+						"          StockItemName as string,",
+						"          SupplierID as integer,",
+						"          ColorID as integer,",
+						"          UnitPackageID as integer,",
+						"          OuterPackageID as integer,",
+						"          Brand as string,",
+						"          Size as string,",
+						"          LeadTimeDays as integer,",
+						"          QuantityPerOuter as integer,",
+						"          IsChillerStock as boolean,",
+						"          Barcode as string,",
+						"          TaxRate as decimal(18,3),",
+						"          UnitPrice as decimal(18,2),",
+						"          RecommendedRetailPrice as decimal(18,2),",
+						"          TypicalWeightPerUnit as decimal(18,3),",
+						"          MarketingComments as string,",
+						"          InternalComments as string,",
+						"          Photo as binary,",
+						"          CustomFields as string,",
+						"          Tags as string,",
+						"          SearchDetails as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> WarehouseStockItems",
+						"source(output(",
+						"          ColorID as integer,",
+						"          ColorName as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> WarehouseColors",
+						"source(output(",
+						"          PackageTypeID as integer,",
+						"          PackageTypeName as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> cWarehousePackageTypes",
+						"source(output(",
+						"          PackageTypeID as integer,",
+						"          PackageTypeName as string,",
+						"          LastEditedBy as integer,",
+						"          ValidFrom as timestamp,",
+						"          ValidTo as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> dWarehousePackageTypes",
+						"source(output(",
+						"          {Stock Item Key} as integer,",
+						"          {WWI Stock Item ID} as integer,",
+						"          {Stock Item} as string,",
+						"          Color as string,",
+						"          {Selling Package} as string,",
+						"          {Buying Package} as string,",
+						"          Brand as string,",
+						"          Size as string,",
+						"          {Lead Time Days} as integer,",
+						"          {Quantity Per Outer} as integer,",
+						"          {Is Chiller Stock} as boolean,",
+						"          Barcode as string,",
+						"          {Tax Rate} as decimal(18,3),",
+						"          {Unit Price} as decimal(18,2),",
+						"          {Recommended Retail Price} as decimal(18,2),",
+						"          {Typical Weight Per Unit} as decimal(18,3),",
+						"          Photo as binary,",
+						"          {Valid From} as timestamp,",
+						"          {Valid To} as timestamp,",
+						"          {Lineage Key} as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> ExistingDimStockItem",
+						"WarehouseStockItems, WarehouseColors join(WarehouseStockItems@ColorID == WarehouseColors@ColorID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinWarehouseColors",
+						"joinWarehouseColors, cWarehousePackageTypes join(UnitPackageID == PackageTypeID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joincWarehousePackageTypes",
+						"joincWarehousePackageTypes, dWarehousePackageTypes join(OuterPackageID == dWarehousePackageTypes@PackageTypeID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joindWarehousePackageTypes",
+						"joindWarehousePackageTypes select(mapColumn(",
+						"          {WWI Stock Item ID} = StockItemID,",
+						"          {Stock Item} = StockItemName,",
+						"          Color = ColorName,",
+						"          {Selling Package} = cWarehousePackageTypes@PackageTypeName,",
+						"          {Buying Package} = dWarehousePackageTypes@PackageTypeName,",
+						"          Brand,",
+						"          Size,",
+						"          {Lead Time Days} = LeadTimeDays,",
+						"          {Quantity Per Outer} = QuantityPerOuter,",
+						"          {Is Chiller Stock} = IsChillerStock,",
+						"          Barcode,",
+						"          {Tax Rate} = TaxRate,",
+						"          {Unit Price} = UnitPrice,",
+						"          {Recommended Retail Price} = RecommendedRetailPrice,",
+						"          {Typical Weight Per Unit} = TypicalWeightPerUnit,",
+						"          Photo,",
+						"          {Valid To} = WarehouseStockItems@ValidTo",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"UpdateValidFrom, ExistingDimStockItem lookup(select1@{WWI Stock Item ID} == ExistingDimStockItem@{WWI Stock Item ID}",
+						"     && UpdateValidFrom@{Valid From} != ExistingDimStockItem@{Valid From},",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'right')~> lookupStockItemIDandValidTime",
+						"select1 derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
+						"lookupStockItemIDandValidTime select(mapColumn(",
+						"          {WWI Stock Item ID} = select1@{WWI Stock Item ID},",
+						"          {Stock Item} = select1@{Stock Item},",
+						"          Color = select1@Color,",
+						"          {Selling Package} = select1@{Selling Package},",
+						"          {Buying Package} = select1@{Buying Package},",
+						"          Brand = select1@Brand,",
+						"          Size = select1@Size,",
+						"          {Lead Time Days} = select1@{Lead Time Days},",
+						"          {Quantity Per Outer} = select1@{Quantity Per Outer},",
+						"          {Is Chiller Stock} = select1@{Is Chiller Stock},",
+						"          Barcode = select1@Barcode,",
+						"          {Tax Rate} = select1@{Tax Rate},",
+						"          {Unit Price} = select1@{Unit Price},",
+						"          {Recommended Retail Price} = select1@{Recommended Retail Price},",
+						"          {Typical Weight Per Unit} = select1@{Typical Weight Per Unit},",
+						"          Photo = select1@Photo,",
+						"          {Valid To} = select1@{Valid To},",
+						"          {Valid From} = UpdateValidFrom@{Valid From},",
+						"          {Lineage Key}",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select2",
+						"select2 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> sinktoDimStockItem"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ODS')]",
+				"[concat(variables('factoryId'), '/datasets/OLTP')]",
+				"[concat(variables('factoryId'), '/datasets/DW')]",
+				"[concat(variables('factoryId'), '/datasets/ExistingDimStockItem')]"
 			]
 		}
 	]
