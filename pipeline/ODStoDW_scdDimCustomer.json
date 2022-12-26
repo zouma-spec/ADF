@@ -141,7 +141,33 @@
 				"typeProperties": {
 					"dataflow": {
 						"referenceName": "ODStoDW_scdDimCustomer",
-						"type": "DataFlowReference"
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"SalesCustomersA": {
+								"SchemaName": "Sales",
+								"TableName": "Customers"
+							},
+							"SalesCustomerCategories": {
+								"TableName": "Sales",
+								"SchemaName": "CustomerCategories"
+							},
+							"SalesBuyingGroups": {
+								"TableName": "BuyingGroups",
+								"SchemaName": "Sales"
+							},
+							"ApplicationPeople": {
+								"SchemaName": "Application",
+								"TableName": "People"
+							},
+							"SalesCustomersB": {
+								"SchemaName": "Sales",
+								"TableName": "Customers"
+							},
+							"ExistingDimCustomer": {
+								"SchemaName": "Dimension",
+								"TableName": "Customer"
+							}
+						}
 					},
 					"compute": {
 						"coreCount": 8,

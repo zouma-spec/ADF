@@ -38,6 +38,10 @@
 							"SalesCustomers": {
 								"SchemaName": "Sales",
 								"TableName": "Customers"
+							},
+							"sinktoFactOrderNewTable": {
+								"SchemaName": "Fact",
+								"TableName": "OrderNew"
 							}
 						}
 					},
