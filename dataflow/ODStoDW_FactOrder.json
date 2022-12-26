@@ -54,7 +54,7 @@
 						"referenceName": "DW",
 						"type": "DatasetReference"
 					},
-					"name": "sink1"
+					"name": "sinktoFactOrderNewTable"
 				}
 			],
 			"transformations": [
@@ -249,7 +249,7 @@
 				"     format: 'table',",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+				"     errorHandlingOption: 'stopOnFirstError') ~> sinktoFactOrderNewTable"
 			]
 		}
 	}
