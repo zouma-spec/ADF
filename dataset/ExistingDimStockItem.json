@@ -1,0 +1,19 @@
+{
+	"name": "ExistingDimStockItem",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "wwi_DW",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "DW"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "Dimension",
+			"table": "Stock Item"
+		}
+	}
+}

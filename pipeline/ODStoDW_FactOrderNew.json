@@ -38,10 +38,6 @@
 							"SalesCustomers": {
 								"SchemaName": "Sales",
 								"TableName": "Customers"
-							},
-							"sink1": {
-								"SchemaName": "Fact",
-								"TableName": "OrderNew"
 							}
 						}
 					},

@@ -1,12 +1,19 @@
 {
-	"name": "pipeline1_copy1",
+	"name": "ODStoDW_scdDimCustomer",
 	"properties": {
 		"activities": [
 			{
 				"name": "LookupLastValidFrom",
 				"description": "look up the [valid To] from the last  updated batch",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "ODStoDW_scdDimCustomer",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -18,7 +25,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Employee]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
+						"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Customer]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -27,7 +34,7 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"SchemaName": "Dimension",
-							"TableName": "Employee"
+							"TableName": "Customer"
 						}
 					}
 				}
@@ -36,7 +43,14 @@
 				"name": "LookupNewValidFrom",
 				"description": "Look up the [valid From] from this new updated batch",
 				"type": "Lookup",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "ODStoDW_scdDimCustomer",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -48,7 +62,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Employee]",
+						"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Customer]",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -57,7 +71,7 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"SchemaName": "Dimension",
-							"TableName": "Employee"
+							"TableName": "Customer"
 						}
 					}
 				}
@@ -110,6 +124,30 @@
 				"linkedServiceName": {
 					"referenceName": "wwi_DW",
 					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "ODStoDW_scdDimCustomer",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "ODStoDW_scdDimCustomer",
+						"type": "DataFlowReference"
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
 				}
 			}
 		],

@@ -1,5 +1,5 @@
 {
-	"name": "ODStoDW_scdDimEmployee",
+	"name": "ODStoDW_scdDimStockItems",
 	"properties": {
 		"activities": [
 			{
@@ -8,7 +8,7 @@
 				"type": "Lookup",
 				"dependsOn": [
 					{
-						"activity": "ODStoDW_scdDimEmployee",
+						"activity": "ODStoDW_scdDimStockItems",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -25,7 +25,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Employee]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
+						"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Stock Item]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -34,43 +34,9 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"SchemaName": "Dimension",
-							"TableName": "Employee"
+							"TableName": "Stock Item"
 						}
 					}
-				}
-			},
-			{
-				"name": "ODStoDW_scdDimEmployee",
-				"type": "ExecuteDataFlow",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"dataflow": {
-						"referenceName": "ODStoDW_scdDimEmployee",
-						"type": "DataFlowReference",
-						"datasetParameters": {
-							"PeopleToEmployee": {
-								"SchemaName": "Application",
-								"TableName": "People"
-							},
-							"ExistingDimensionEmployee": {
-								"SchemaName": "Dimension",
-								"TableName": "Employee"
-							}
-						}
-					},
-					"compute": {
-						"coreCount": 8,
-						"computeType": "General"
-					},
-					"traceLevel": "Fine"
 				}
 			},
 			{
@@ -79,7 +45,7 @@
 				"type": "Lookup",
 				"dependsOn": [
 					{
-						"activity": "ODStoDW_scdDimEmployee",
+						"activity": "ODStoDW_scdDimStockItems",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -96,7 +62,7 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Employee]",
+						"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Stock Item]",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -105,7 +71,7 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"SchemaName": "Dimension",
-							"TableName": "Employee"
+							"TableName": "Stock Item"
 						}
 					}
 				}
@@ -141,14 +107,14 @@
 					"storedProcedureParameters": {
 						"NewValidFrom": {
 							"value": {
-								"value": "@activity('LookupNewValidFrom').output.firstRow.NewValidFrom",
+								"value": "@{activity('LookupNewValidFrom').output.firstRow.NewValidFrom}",
 								"type": "Expression"
 							},
 							"type": "Datetime"
 						},
 						"LastValidFrom": {
 							"value": {
-								"value": "@activity('LookupLastValidFrom').output.firstRow.LastValidFrom",
+								"value": "@{activity('LookupLastValidFrom').output.firstRow.LastValidFrom}",
 								"type": "Expression"
 							},
 							"type": "Datetime"
@@ -158,6 +124,52 @@
 				"linkedServiceName": {
 					"referenceName": "wwi_DW",
 					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "ODStoDW_scdDimStockItems",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "ODStoDW_scdDimStockItems",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"WarehouseStockItems": {
+								"SchemaName": "Warehouse",
+								"TableName": "StockItems"
+							},
+							"WarehouseColors": {
+								"TableName": "Colors",
+								"SchemaName": "Warehouse"
+							},
+							"cWarehousePackageTypes": {
+								"SchemaName": "Warehouse",
+								"TableName": "PackageTypes"
+							},
+							"dWarehousePackageTypes": {
+								"SchemaName": "Warehouse",
+								"TableName": "PackageTypes"
+							},
+							"ExistingDimStockItem": {
+								"SchemaName": "Dimension",
+								"TableName": "Stock Item"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
 				}
 			}
 		],

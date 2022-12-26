@@ -1,0 +1,254 @@
+{
+	"name": "ODStoDW_scdDimStockItems",
+	"properties": {
+		"folder": {
+			"name": "ODStoDW"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ODS",
+						"type": "DatasetReference"
+					},
+					"name": "WarehouseStockItems",
+					"description": "Import Warehouse.StockItems table from ODS"
+				},
+				{
+					"dataset": {
+						"referenceName": "OLTP",
+						"type": "DatasetReference"
+					},
+					"name": "WarehouseColors",
+					"description": "Import Warehouse.Colors table from OLTP"
+				},
+				{
+					"dataset": {
+						"referenceName": "ODS",
+						"type": "DatasetReference"
+					},
+					"name": "cWarehousePackageTypes",
+					"description": "Import Warehouse.PackageTypes table from ODS"
+				},
+				{
+					"dataset": {
+						"referenceName": "ODS",
+						"type": "DatasetReference"
+					},
+					"name": "dWarehousePackageTypes",
+					"description": "Import Warehouse.PackageTypes table from ODS"
+				},
+				{
+					"dataset": {
+						"referenceName": "DW",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingDimStockItem",
+					"description": "Import ExistingDimStockItem table from DW"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ExistingDimStockItem",
+						"type": "DatasetReference"
+					},
+					"name": "sinktoDimStockItem",
+					"description": "Export data to ExistingDimStockItem in DW"
+				}
+			],
+			"transformations": [
+				{
+					"name": "joinWarehouseColors"
+				},
+				{
+					"name": "joincWarehousePackageTypes"
+				},
+				{
+					"name": "joindWarehousePackageTypes"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "lookupStockItemIDandValidTime"
+				},
+				{
+					"name": "UpdateValidFrom",
+					"description": "Change Valid From Time To Current TimeStamp"
+				},
+				{
+					"name": "select2"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          StockItemID as integer,",
+				"          StockItemName as string,",
+				"          SupplierID as integer,",
+				"          ColorID as integer,",
+				"          UnitPackageID as integer,",
+				"          OuterPackageID as integer,",
+				"          Brand as string,",
+				"          Size as string,",
+				"          LeadTimeDays as integer,",
+				"          QuantityPerOuter as integer,",
+				"          IsChillerStock as boolean,",
+				"          Barcode as string,",
+				"          TaxRate as decimal(18,3),",
+				"          UnitPrice as decimal(18,2),",
+				"          RecommendedRetailPrice as decimal(18,2),",
+				"          TypicalWeightPerUnit as decimal(18,3),",
+				"          MarketingComments as string,",
+				"          InternalComments as string,",
+				"          Photo as binary,",
+				"          CustomFields as string,",
+				"          Tags as string,",
+				"          SearchDetails as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> WarehouseStockItems",
+				"source(output(",
+				"          ColorID as integer,",
+				"          ColorName as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> WarehouseColors",
+				"source(output(",
+				"          PackageTypeID as integer,",
+				"          PackageTypeName as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> cWarehousePackageTypes",
+				"source(output(",
+				"          PackageTypeID as integer,",
+				"          PackageTypeName as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> dWarehousePackageTypes",
+				"source(output(",
+				"          {Stock Item Key} as integer,",
+				"          {WWI Stock Item ID} as integer,",
+				"          {Stock Item} as string,",
+				"          Color as string,",
+				"          {Selling Package} as string,",
+				"          {Buying Package} as string,",
+				"          Brand as string,",
+				"          Size as string,",
+				"          {Lead Time Days} as integer,",
+				"          {Quantity Per Outer} as integer,",
+				"          {Is Chiller Stock} as boolean,",
+				"          Barcode as string,",
+				"          {Tax Rate} as decimal(18,3),",
+				"          {Unit Price} as decimal(18,2),",
+				"          {Recommended Retail Price} as decimal(18,2),",
+				"          {Typical Weight Per Unit} as decimal(18,3),",
+				"          Photo as binary,",
+				"          {Valid From} as timestamp,",
+				"          {Valid To} as timestamp,",
+				"          {Lineage Key} as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> ExistingDimStockItem",
+				"WarehouseStockItems, WarehouseColors join(WarehouseStockItems@ColorID == WarehouseColors@ColorID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinWarehouseColors",
+				"joinWarehouseColors, cWarehousePackageTypes join(UnitPackageID == PackageTypeID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joincWarehousePackageTypes",
+				"joincWarehousePackageTypes, dWarehousePackageTypes join(OuterPackageID == dWarehousePackageTypes@PackageTypeID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joindWarehousePackageTypes",
+				"joindWarehousePackageTypes select(mapColumn(",
+				"          {WWI Stock Item ID} = StockItemID,",
+				"          {Stock Item} = StockItemName,",
+				"          Color = ColorName,",
+				"          {Selling Package} = cWarehousePackageTypes@PackageTypeName,",
+				"          {Buying Package} = dWarehousePackageTypes@PackageTypeName,",
+				"          Brand,",
+				"          Size,",
+				"          {Lead Time Days} = LeadTimeDays,",
+				"          {Quantity Per Outer} = QuantityPerOuter,",
+				"          {Is Chiller Stock} = IsChillerStock,",
+				"          Barcode,",
+				"          {Tax Rate} = TaxRate,",
+				"          {Unit Price} = UnitPrice,",
+				"          {Recommended Retail Price} = RecommendedRetailPrice,",
+				"          {Typical Weight Per Unit} = TypicalWeightPerUnit,",
+				"          Photo,",
+				"          {Valid To} = WarehouseStockItems@ValidTo",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"UpdateValidFrom, ExistingDimStockItem lookup(select1@{WWI Stock Item ID} == ExistingDimStockItem@{WWI Stock Item ID}",
+				"     && UpdateValidFrom@{Valid From} != ExistingDimStockItem@{Valid From},",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'right')~> lookupStockItemIDandValidTime",
+				"select1 derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
+				"lookupStockItemIDandValidTime select(mapColumn(",
+				"          {WWI Stock Item ID} = select1@{WWI Stock Item ID},",
+				"          {Stock Item} = select1@{Stock Item},",
+				"          Color = select1@Color,",
+				"          {Selling Package} = select1@{Selling Package},",
+				"          {Buying Package} = select1@{Buying Package},",
+				"          Brand = select1@Brand,",
+				"          Size = select1@Size,",
+				"          {Lead Time Days} = select1@{Lead Time Days},",
+				"          {Quantity Per Outer} = select1@{Quantity Per Outer},",
+				"          {Is Chiller Stock} = select1@{Is Chiller Stock},",
+				"          Barcode = select1@Barcode,",
+				"          {Tax Rate} = select1@{Tax Rate},",
+				"          {Unit Price} = select1@{Unit Price},",
+				"          {Recommended Retail Price} = select1@{Recommended Retail Price},",
+				"          {Typical Weight Per Unit} = select1@{Typical Weight Per Unit},",
+				"          Photo = select1@Photo,",
+				"          {Valid To} = select1@{Valid To},",
+				"          {Valid From} = UpdateValidFrom@{Valid From},",
+				"          {Lineage Key}",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select2",
+				"select2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sinktoDimStockItem"
+			]
+		}
+	}
+}
