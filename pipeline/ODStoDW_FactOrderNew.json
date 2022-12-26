@@ -1,0 +1,61 @@
+{
+	"name": "ODStoDW_FactOrderNew",
+	"properties": {
+		"activities": [
+			{
+				"name": "ODStoDW_FactOrder",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "ODStoDW_FactOrder",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"SalesOrders": {
+								"SchemaName": "Sales",
+								"TableName": "Orders"
+							},
+							"SalesOrderLines": {
+								"SchemaName": "Sales",
+								"TableName": "orderLines"
+							},
+							"WarehouseStockItems": {
+								"SchemaName": "Warehouse",
+								"TableName": "StockItems"
+							},
+							"WarehousePackageTypes": {
+								"SchemaName": "Warehouse",
+								"TableName": "PackageTypes"
+							},
+							"SalesCustomers": {
+								"SchemaName": "Sales",
+								"TableName": "Customers"
+							},
+							"sink1": {
+								"SchemaName": "Fact",
+								"TableName": "OrderNew"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"folder": {
+			"name": "ODStoDW"
+		},
+		"annotations": []
+	}
+}

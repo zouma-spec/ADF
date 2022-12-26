@@ -1,6 +1,9 @@
 {
-	"name": "dataflow1",
+	"name": "ODStoDW_FactOrder",
 	"properties": {
+		"folder": {
+			"name": "ODStoDW"
+		},
 		"type": "MappingDataFlow",
 		"typeProperties": {
 			"sources": [
@@ -9,16 +12,243 @@
 						"referenceName": "ODS",
 						"type": "DatasetReference"
 					},
-					"name": "source1"
+					"name": "SalesOrders",
+					"description": "Import SalesOrders table from ODS"
+				},
+				{
+					"dataset": {
+						"referenceName": "ODS",
+						"type": "DatasetReference"
+					},
+					"name": "SalesOrderLines",
+					"description": "Import SalesOrderLines table from ODS"
+				},
+				{
+					"dataset": {
+						"referenceName": "ODS",
+						"type": "DatasetReference"
+					},
+					"name": "WarehouseStockItems",
+					"description": "Import WarehouseStockItems table from ODS"
+				},
+				{
+					"dataset": {
+						"referenceName": "ODS",
+						"type": "DatasetReference"
+					},
+					"name": "WarehousePackageTypes",
+					"description": "Import WarehousePackageTypes table from ODS"
+				},
+				{
+					"dataset": {
+						"referenceName": "ODS",
+						"type": "DatasetReference"
+					},
+					"name": "SalesCustomers",
+					"description": "Import SalesCustomers table from ODS"
 				}
 			],
-			"sinks": [],
-			"transformations": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DW",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "joinSalesOrderLines"
+				},
+				{
+					"name": "joinSalesCustomers"
+				},
+				{
+					"name": "joinWarehouseStockItems"
+				},
+				{
+					"name": "joinWarehousePackageTypes"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "derivedColumn1",
+					"description": "Creating columns {Total Excluding Tax}, {Tax Amount}, {Total Including Tax}"
+				}
+			],
 			"scriptLines": [
-				"source(allowSchemaDrift: true,",
+				"source(output(",
+				"          OrderID as integer,",
+				"          CustomerID as integer,",
+				"          SalespersonPersonID as integer,",
+				"          PickedByPersonID as integer,",
+				"          ContactPersonID as integer,",
+				"          BackorderOrderID as integer,",
+				"          OrderDate as date,",
+				"          ExpectedDeliveryDate as date,",
+				"          CustomerPurchaseOrderNumber as string,",
+				"          IsUndersupplyBackordered as boolean,",
+				"          Comments as string,",
+				"          DeliveryInstructions as string,",
+				"          InternalComments as string,",
+				"          PickingCompletedWhen as timestamp,",
+				"          LastEditedBy as integer,",
+				"          LastEditedWhen as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     format: 'table') ~> source1"
+				"     format: 'table') ~> SalesOrders",
+				"source(output(",
+				"          OrderLineID as integer,",
+				"          OrderID as integer,",
+				"          StockItemID as integer,",
+				"          Description as string,",
+				"          PackageTypeID as integer,",
+				"          Quantity as integer,",
+				"          UnitPrice as decimal(18,2),",
+				"          TaxRate as decimal(18,3),",
+				"          PickedQuantity as integer,",
+				"          PickingCompletedWhen as timestamp,",
+				"          LastEditedBy as integer,",
+				"          LastEditedWhen as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> SalesOrderLines",
+				"source(output(",
+				"          StockItemID as integer,",
+				"          StockItemName as string,",
+				"          SupplierID as integer,",
+				"          ColorID as integer,",
+				"          UnitPackageID as integer,",
+				"          OuterPackageID as integer,",
+				"          Brand as string,",
+				"          Size as string,",
+				"          LeadTimeDays as integer,",
+				"          QuantityPerOuter as integer,",
+				"          IsChillerStock as boolean,",
+				"          Barcode as string,",
+				"          TaxRate as decimal(18,3),",
+				"          UnitPrice as decimal(18,2),",
+				"          RecommendedRetailPrice as decimal(18,2),",
+				"          TypicalWeightPerUnit as decimal(18,3),",
+				"          MarketingComments as string,",
+				"          InternalComments as string,",
+				"          Photo as binary,",
+				"          CustomFields as string,",
+				"          Tags as string,",
+				"          SearchDetails as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> WarehouseStockItems",
+				"source(output(",
+				"          PackageTypeID as integer,",
+				"          PackageTypeName as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> WarehousePackageTypes",
+				"source(output(",
+				"          CustomerID as integer,",
+				"          CustomerName as string,",
+				"          BillToCustomerID as integer,",
+				"          CustomerCategoryID as integer,",
+				"          BuyingGroupID as integer,",
+				"          PrimaryContactPersonID as integer,",
+				"          AlternateContactPersonID as integer,",
+				"          DeliveryMethodID as integer,",
+				"          DeliveryCityID as integer,",
+				"          PostalCityID as integer,",
+				"          CreditLimit as decimal(18,2),",
+				"          AccountOpenedDate as date,",
+				"          StandardDiscountPercentage as decimal(18,3),",
+				"          IsStatementSent as boolean,",
+				"          IsOnCreditHold as boolean,",
+				"          PaymentDays as integer,",
+				"          PhoneNumber as string,",
+				"          FaxNumber as string,",
+				"          DeliveryRun as string,",
+				"          RunPosition as string,",
+				"          WebsiteURL as string,",
+				"          DeliveryAddressLine1 as string,",
+				"          DeliveryAddressLine2 as string,",
+				"          DeliveryPostalCode as string,",
+				"          DeliveryLocation as binary,",
+				"          PostalAddressLine1 as string,",
+				"          PostalAddressLine2 as string,",
+				"          PostalPostalCode as string,",
+				"          LastEditedBy as integer,",
+				"          ValidFrom as timestamp,",
+				"          ValidTo as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> SalesCustomers",
+				"SalesOrders, SalesOrderLines join(SalesOrders@OrderID == SalesOrderLines@OrderID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinSalesOrderLines",
+				"joinSalesOrderLines, SalesCustomers join(SalesOrders@CustomerID == SalesCustomers@CustomerID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinSalesCustomers",
+				"joinSalesCustomers, WarehouseStockItems join(SalesOrderLines@StockItemID == WarehouseStockItems@StockItemID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinWarehouseStockItems",
+				"joinWarehouseStockItems, WarehousePackageTypes join(UnitPackageID == WarehousePackageTypes@PackageTypeID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinWarehousePackageTypes",
+				"joinWarehousePackageTypes select(mapColumn(",
+				"          {City Key} = DeliveryCityID,",
+				"          {Customer Key} = SalesOrders@CustomerID,",
+				"          {Stock Item Key} = SalesOrderLines@StockItemID,",
+				"          {Order Date Key} = OrderDate,",
+				"          {Picked Date Key} = SalesOrders@PickingCompletedWhen,",
+				"          {Salesperson Key} = SalespersonPersonID,",
+				"          {Picker Key} = PickedByPersonID,",
+				"          {WWI Order ID} = SalesOrders@OrderID,",
+				"          {WWI Backorder ID} = BackorderOrderID,",
+				"          Description,",
+				"          Package = PackageTypeName,",
+				"          Quantity,",
+				"          {Unit Price} = SalesOrderLines@UnitPrice,",
+				"          {Tax Rate} = SalesOrderLines@TaxRate",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 derive({Total Excluding Tax} = {Unit Price}*Quantity,",
+				"          {Tax Amount} = Quantity*{Unit Price}*{Tax Rate}/100,",
+				"          {Total Including Tax} = Quantity*{Unit Price}*(1+{Tax Rate}/100)) ~> derivedColumn1",
+				"derivedColumn1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
 			]
 		}
 	}
