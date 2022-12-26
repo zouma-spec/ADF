@@ -54,7 +54,8 @@
 						"referenceName": "DW",
 						"type": "DatasetReference"
 					},
-					"name": "sinktoFactOrderNewTable"
+					"name": "sinktoFactOrderNewTable",
+					"description": "Load date to DW "
 				}
 			],
 			"transformations": [

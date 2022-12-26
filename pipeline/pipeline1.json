@@ -1,0 +1,169 @@
+{
+	"name": "pipeline1",
+	"properties": {
+		"activities": [
+			{
+				"name": "LookupLastValidFrom",
+				"description": "look up the [valid To] from the last  updated batch",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "ODStoDW_scdDimEmployee_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select distinct[Valid From] as LastValidFrom\nfrom[Dimension].[Employee]\norder by [Valid From] desc\noffset 1 rows\nfetch next 1 rows only",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DW",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "Dimension",
+							"TableName": "Employee"
+						}
+					}
+				}
+			},
+			{
+				"name": "ODStoDW_scdDimEmployee_copy1",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "ODStoDW_scdDimEmployee",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"PeopleToEmployee": {
+								"SchemaName": "Application",
+								"TableName": "People"
+							},
+							"ExistingDimensionEmployee": {
+								"SchemaName": "Dimension",
+								"TableName": "Employee"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "LookupNewValidFrom",
+				"description": "Look up the [valid From] from this new updated batch",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "ODStoDW_scdDimEmployee_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select Max([Valid From]) as NewValidFrom\nfrom [Dimension].[Employee]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DW",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "Dimension",
+							"TableName": "Employee"
+						}
+					}
+				}
+			},
+			{
+				"name": "Stored procedure usp_updateLastsValidTo",
+				"description": "Update the [Valid To] from the last  updated batch ",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "LookupLastValidFrom",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "LookupNewValidFrom",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "dbo.usp_updateLastsValidTo",
+					"storedProcedureParameters": {
+						"NewValidFrom": {
+							"value": {
+								"value": "@activity('LookupNewValidFrom').output.firstRow.NewValidFrom",
+								"type": "Expression"
+							},
+							"type": "Datetime"
+						},
+						"LastValidFrom": {
+							"value": {
+								"value": "@activity('LookupLastValidFrom').output.firstRow.LastValidFrom",
+								"type": "Expression"
+							},
+							"type": "Datetime"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "wwi_DW",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"folder": {
+			"name": "ODStoDW"
+		},
+		"annotations": []
+	}
+}
