@@ -1,5 +1,5 @@
 {
-	"name": "fromTemplate_DimEmp",
+	"name": "Template_DimEmp",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "scd2trial",
