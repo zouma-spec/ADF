@@ -89,6 +89,9 @@
 				},
 				{
 					"name": "select1"
+				},
+				{
+					"name": "sort1"
 				}
 			],
 			"scriptLines": [
@@ -256,7 +259,7 @@
 				"          {WWI Customer ID} = SalesCustomersA@CustomerID,",
 				"          Customer = SalesCustomersA@CustomerName,",
 				"          {Bill To Customer} = SalesCustomersB@CustomerName,",
-				"          Category = SalesCustomerCategories@CustomerCategoryID,",
+				"          Category = CustomerCategoryName,",
 				"          {Buying Group} = BuyingGroupName,",
 				"          {Primary Contact} = FullName,",
 				"          {Postal Code} = SalesCustomersA@DeliveryPostalCode,",
@@ -266,10 +269,11 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> DataPreparedToLoad",
 				"DataPreparedToLoad derive({Valid From} = currentTimestamp()) ~> UpdateValidFrom",
-				"UpdateValidFrom, ExistingDimCustomer lookup(UpdateValidFrom@{Valid From} == ExistingDimCustomer@{Valid From},",
+				"UpdateValidFrom, ExistingDimCustomer lookup(DataPreparedToLoad@{WWI Customer ID} == ExistingDimCustomer@{WWI Customer ID}",
+				"     && UpdateValidFrom@{Valid From} != ExistingDimCustomer@{Valid From},",
 				"     multiple: false,",
 				"     pickup: 'any',",
-				"     broadcast: 'left')~> lookup1",
+				"     broadcast: 'right')~> lookup1",
 				"lookup1 select(mapColumn(",
 				"          {WWI Customer ID} = DataPreparedToLoad@{WWI Customer ID},",
 				"          Customer = DataPreparedToLoad@Customer,",
@@ -283,7 +287,8 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> select1",
-				"select1 sink(allowSchemaDrift: true,",
+				"select1 sort(asc({WWI Customer ID}, true)) ~> sort1",
+				"sort1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
 				"          {Customer Key} as integer,",
